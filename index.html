@@ -46,18 +46,18 @@
         // 🔧 PASTE YOUR REAL YOTO CLIENT ID HERE:
         const YOTO_CLIENT_ID = "YOUR_REAL_YOTO_CLIENT_ID"; 
         
-        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE:
+        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE (WITHOUT A TRAILING SLASH):
         const RENDER_BACKEND_URL = "https://onrender.com"; 
 
         const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
-        // 1. Check if returning with a connection success message
+        // Detect if coming back from a successful connection redirect
         if (new URLSearchParams(window.location.search).get('connected') === 'true') {
             document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
             document.getElementById('connectionStatus').style.color = "#4caf50";
         }
 
-        // 2. PKCE Cryptographic Helpers (Generates code proof on-the-fly)
+        // 🔐 Safe, Modern PKCE Cryptographic Generator Functions
         function generateRandomString(length) {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
             let text = '';
@@ -71,20 +71,30 @@
             const encoder = new TextEncoder();
             const data = encoder.encode(codeVerifier);
             const digest = await window.crypto.subtle.digest('SHA-256', data);
-            return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
-                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            
+            // Bulletproof browser-compliant binary string layout conversion
+            const uintArray = new Uint8Array(digest);
+            let binaryStr = '';
+            for (let i = 0; i < uintArray.byteLength; i++) {
+                binaryStr += String.fromCharCode(uintArray[i]);
+            }
+            
+            return btoa(binaryStr)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
         }
 
-        // 3. Initiate Secure Login Flow
+        // Redirect user safely to Yoto Authorization Matrix
         document.getElementById('connectYotoBtn').addEventListener('click', async () => {
             const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
             const scopes = "user:content:view user:content:manage offline_access";
 
-            // Create and store the verification secret inside browser session cache
+            // Save our runtime verifier password internally inside session storage
             const verifier = generateRandomString(64);
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
             
-            // Build the cryptographically hashed mathematical code challenge
+            // Build the mathematical signature link
             const challenge = await generateCodeChallenge(verifier);
 
             window.location.href = `https://yoto.dev` +
@@ -96,7 +106,7 @@
                 `&code_challenge_method=S256`;
         });
 
-        // 4. Handle Developer Submissions
+        // App creation submission handler logic
         document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const appPayload = {
@@ -119,11 +129,11 @@
                     body: JSON.stringify(appPayload)
                 });
                 if (response.ok) {
-                    alert("🎉 Success! App blueprint deployed instantly.");
+                    alert("🎉 Success! App logic template deployed dynamically.");
                     document.getElementById('appUploadForm').reset();
                 }
             } catch (err) {
-                alert("❌ Cannot reach Render server backend.");
+                alert("❌ Cannot reach your Render server backend instance.");
             }
         });
     </script>
