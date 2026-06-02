@@ -28,18 +28,24 @@
         async function completeAuthentication() {
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
+            
+            // Retrieve verification code from session cache
+            const savedVerifier = sessionStorage.getItem('yoto_pkce_verifier');
 
             if (!authCode) {
-                showError("No authorization code found returning from Yoto.");
+                showError("No auth code returned from Yoto.");
                 return;
             }
 
             try {
-                // 🔧 CHANGE THIS TO YOUR ACTUAL RENDER WORKER ENDPOINT LINK:
+                // 🔧 CHANGE THE LINK BELOW TO MATCH YOUR REAL RENDER SERVICE ADDRESS:
                 const response = await fetch('https://onrender.com', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ authCode: authCode })
+                    body: JSON.stringify({ 
+                        authCode: authCode,
+                        codeVerifier: savedVerifier 
+                    })
                 });
 
                 const data = await response.json();
