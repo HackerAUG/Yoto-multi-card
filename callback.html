@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting your Yoto...</title>
+    <style>
+        body { font-family: system-ui, sans-serif; text-align: center; padding: 50px; background: #f9f9f9; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ff6b35; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { color: #d9381e; display: none; }
+    </style>
+</head>
+<body>
+    <div id="status-container">
+        <h2>🔒 Securing your connection...</h2>
+        <p>Linking your Yoto Player to the App Store platform.</p>
+        <div class="loader"></div>
+    </div>
+
+    <div id="error-message" class="error">
+        <h2>⚠️ Connection Failed</h2>
+        <p id="error-text">Could not communicate with the server.</p>
+        <a href="index.html">Return to Home</a>
+    </div>
+
+    <script>
+        async function completeAuthentication() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code');
+
+            if (!authCode) {
+                showError("No authorization code found returning from Yoto.");
+                return;
+            }
+
+            try {
+                // 🔧 CHANGE THIS TO YOUR ACTUAL RENDER WORKER ENDPOINT LINK:
+                const response = await fetch('https://onrender.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ authCode: authCode })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('yoto_player_id', data.playerId);
+                    window.location.href = 'index.html?connected=true';
+                } else {
+                    showError(data.error || "The server rejected the credentials.");
+                }
+            } catch (error) {
+                showError("Failed to reach your Render web service backend.");
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('status-container').style.display = 'none';
+            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('error-text').innerText = message;
+        }
+
+        completeAuthentication();
+    </script>
+</body>
+</html>
