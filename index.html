@@ -9,9 +9,10 @@
         .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         h1 { color: #ff6b35; text-align: center; }
         h3 { margin-top: 0; color: #222; }
-        button { background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; }
+        button { background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
         button:hover { background: #e55a2b; }
         input, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        label { font-size: 12px; font-weight: bold; color: #666; display: block; margin-bottom: 5px; }
         .submit-btn { background: #4caf50; }
         .submit-btn:hover { background: #43a047; }
         #connectionStatus { font-weight: bold; text-align: center; margin-top: 15px; }
@@ -35,55 +36,135 @@
         <h3>🚀 2. Developer Studio</h3>
         <p style="color: #555; font-size: 14px;">Publish automated code state modules directly into the cloud storage directory.</p>
         <form id="appUploadForm">
-            <input type="text" id="appName" placeholder="Application Name (e.g., Math Whiz)" required>
-            <input type="text" id="iconIdentifier" placeholder="Pixel Art Screen Icon ID (e.g., pixel_rocket)" required>
-            <textarea id="audioPrompt" placeholder="What the speaker will voice out when card slides inside player..." rows="3" required></textarea>
+            <input type="text" id="appName" placeholder="Application Name (e.g., Treasure Hunt)" required>
+            <input type="text" id="iconIdentifier" placeholder="Pixel Screen Icon ID (e.g., yoto:rocket)" required>
+            
+            <label>1. Starting Greeting:</label>
+            <textarea id="welcomePrompt" placeholder="Welcome to the treasure hunt! Turn the dial..." rows="3" required></textarea>
+
+            <label>2. Winning Response (If Option 2 Selected):</label>
+            <textarea id="winPrompt" placeholder="You opened the glowing chest and found gold! You win!" rows="2" required></textarea>
+
+            <label>3. Losing Response (If Option 1 Selected):</label>
+            <textarea id="losePrompt" placeholder="Oh no, a monster blocked the tunnel! Press left dial to restart." rows="2" required></textarea>
+
             <button type="submit" class="submit-btn">Publish App to Store</button>
         </form>
     </div>
 
-    <script>
-        // 🔧 PASTE YOUR REAL YOTO CLIENT ID HERE BETWEEN THE QUOTES:
-        const YOTO_CLIENT_ID = "BA8IaVyfDSHBPMEM4eXCep9VVHjHwLAy"; 
-        
-        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE (WITHOUT A TRAILING SLASH):
-        const RENDER_BACKEND_URL = "https://yoto-multi-card.onrender.com"; 
+    <!-- Block 3: Custom Pixel Art Canvas Creator -->
+    <div class="card">
+        <h3>🎨 3. 16x16 Pixel Art Studio</h3>
+        <p style="color: #555; font-size: 14px;">Click the grid squares to design custom graphics for your Yoto screen.</p>
+        <div id="pixelGrid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; max-width: 320px; margin: 0 auto 15px auto; background: #ddd; padding: 4px; border-radius: 8px;"></div>
+        <button type="button" id="clearGridBtn" style="background: #9e9e9e; margin-bottom: 10px;">Clear Canvas</button>
+        <input type="text" id="customIconName" placeholder="Save Icon As (e.g., custom_sword)">
+        <button type="button" id="saveIconBtn" class="submit-btn">Save Pixel Art to Server</button>
+    </div>
 
-        // Compute local paths dynamically
+    <script>
+        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE (WITHOUT A TRAILING SLASH):
+        const RENDER_BACKEND_URL = "https://onrender.com"; 
+
         const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
-        // 1. Detect if returning with a connection success message
+        // Build the 16x16 Canvas Interface dynamically
+        const gridContainer = document.getElementById('pixelGrid');
+        for (let i = 0; i < 256; i++) {
+            const pixel = document.createElement('div');
+            pixel.style.width = '100%';
+            pixel.style.aspectRatio = '1/1';
+            pixel.style.background = '#fff';
+            pixel.style.cursor = 'pointer';
+            pixel.style.borderRadius = '2px';
+            pixel.dataset.active = "false";
+            pixel.addEventListener('click', () => {
+                if (pixel.dataset.active === "false") {
+                    pixel.style.background = '#ff6b35'; 
+                    pixel.dataset.active = "true";
+                } else {
+                    pixel.style.background = '#fff';
+                    pixel.dataset.active = "false";
+                }
+            });
+            gridContainer.appendChild(pixel);
+        }
+
+        document.getElementById('clearGridBtn').addEventListener('click', () => {
+            document.querySelectorAll('#pixelGrid div').forEach(p => {
+                p.style.background = '#fff';
+                p.dataset.active = "false";
+            });
+        });
+
+        // Save Custom Pixel Art Canvas Array Matrix to Neon via Render API Proxy
+        document.getElementById('saveIconBtn').addEventListener('click', async () => {
+            const iconName = document.getElementById('customIconName').value || 'custom_icon';
+            const pixels = Array.from(document.querySelectorAll('#pixelGrid div')).map(p => p.dataset.active === "true" ? 1 : 0);
+            
+            try {
+                const response = await fetch(`${RENDER_BACKEND_URL}/api/icons/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ iconName, pixelMatrix: pixels })
+                });
+                if (response.ok) alert(`🎨 Custom icon "${iconName}" saved over-the-air!`);
+            } catch (err) {
+                alert("❌ Failed to save custom icon to Render backend.");
+            }
+        });
+
+        // Detect if coming back from a successful connection redirect
         if (new URLSearchParams(window.location.search).get('connected') === 'true') {
             document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
             document.getElementById('connectionStatus').style.color = "#4caf50";
         }
 
-        // 2. Cryptographic Generator Helpers for Secretless PKCE Authorization Flow
+        // Cryptographic Generator Helpers for Secretless PKCE Authorization Flow
         function generateRandomString(length) {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
             let text = '';
-            for (let i = 0; i  {
-            const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
-            const scopes = "user:content:view user:content:manage offline_access";
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
 
-            // Store verification data securely within this temporary session window 
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            
+            const uintArray = new Uint8Array(digest);
+            let binaryStr = '';
+            for (let i = 0; i < uintArray.byteLength; i++) {
+                binaryStr += String.fromCharCode(uintArray[i]);
+            }
+            
+            return btoa(binaryStr)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        // Redirect user safely to Yoto Authorization Matrix Proxy
+        document.getElementById('connectYotoBtn').addEventListener('click', async () => {
+            const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
+
             const verifier = generateRandomString(64);
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
-            
-            // Build challenge profile matching verification protocols
             const challenge = await generateCodeChallenge(verifier);
 
-            // Updated endpoint structure addressing production routes directly
-            window.location.href = `https://yoto.com` +
-                `?client_id=${YOTO_CLIENT_ID}` +
-                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-                `&response_type=code` +
-                `&scope=${encodeURIComponent(scopes)}` +
-                `&code_challenge=${challenge}` +
-                `&code_challenge_method=S256`;
+            try {
+                const response = await fetch(`${RENDER_BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
+                const data = await response.json();
+                window.location.href = data.url;
+            } catch (err) {
+                alert("❌ Cannot reach Render auth gateway proxy.");
+            }
         });
 
-        // 4. Handle Developer Submission variables
+        // App creation submission handler logic
         document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const appPayload = {
@@ -91,10 +172,9 @@
                 iconIdentifier: document.getElementById('iconIdentifier').value,
                 jsonLogic: {
                     states: {
-                        welcome: {
-                            audio_prompt: document.getElementById('audioPrompt').value,
-                            on_click: "check_guess"
-                        }
+                        welcome: { audio_prompt: document.getElementById('welcomePrompt').value, on_click: "check_guess" },
+                        win: { audio_prompt: document.getElementById('winPrompt').value, on_click: "go_home" },
+                        try_again: { audio_prompt: document.getElementById('losePrompt').value, on_click: "check_guess" }
                     }
                 }
             };
@@ -113,6 +193,3 @@
                 alert("❌ Cannot reach your Render server backend instance.");
             }
         });
-    </script>
-</body>
-</html>
