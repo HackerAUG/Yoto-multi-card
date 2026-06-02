@@ -16,146 +16,171 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-/**
- * 📡 MQTT REAL-TIME SYSTEM ENGINE LINK
- */
 function startPlayerLiveSync(deviceId, accessToken) {
-  const MQTT_URL = "wss://aqrphjqbp3u2z-ats.iot.eu-west-2.amazonaws.com";
-  const clientIdentifier = `DASH_${deviceId}_${Math.floor(Math.random() * 1000)}`;
+  const MQTT_URL = "wss://://amazonaws.com";
+  const clientIdentifier = `OS_${deviceId}_${Math.floor(Math.random() * 1000)}`;
 
   const client = mqtt.connect(MQTT_URL, {
-    keepalive: 300,
-    port: 443,
-    protocol: "wss",
+    keepalive: 300, port: 443, protocol: "wss",
     username: `${deviceId}?x-amz-customauthorizer-name=PublicJWTAuthorizer`,
-    password: accessToken, // Access token validates identity without client secrets
-    clientId: clientIdentifier,
-    ALPNProtocols: ["x-amzn-mqtt-ca"]
+    password: accessToken, clientId: clientIdentifier, ALPNProtocols: ["x-amzn-mqtt-ca"]
   });
 
   client.on('connect', () => {
-    console.log(`📡 Linked live to hardware device via MQTT broker: ${deviceId}`);
+    console.log(`0x1F4E1 App Store Engine locked onto player: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
   client.on('message', async (topic, message) => {
     try {
-      const eventData = JSON.parse(message.toString());
-      const { type, value } = eventData;
+      const event = JSON.parse(message.toString());
+      
+      const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
+      if (sessionRes.rows.length === 0) return;
+      const session = sessionRes.rows[0];
+      let currentMenu = session.current_state_name || 'home'; 
+      let currentIdx = session.current_dial_value || 0;
 
-      if (type === 'card_inserted') {
-        sendPixelIconToPlayer(client, deviceId, "pixel_rocket");
+      if (event.type === 'left_button_pressed') {
+        await pool.query(
+          "UPDATE active_sessions SET current_state_name = 'home', current_dial_value = 0, current_app_id = NULL WHERE yoto_player_id = $1",
+          [deviceId]
+        );
+        sendPixelIcon(client, deviceId, "yoto:home");
+        return;
       }
 
-      if (type === 'dial_turned') {
-        await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [value, deviceId]);
+      if (event.type === 'right_dial_turned') {
+        const rawValue = event.value; 
+
+        if (currentMenu === 'home') {
+          const choice = Math.abs(rawValue) % 2;
+          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [choice, deviceId]);
+          sendPixelIcon(client, deviceId, choice === 0 ? "yoto:basket" : "yoto:play");
+        } 
+        else if (currentMenu === 'store') {
+          const apps = await pool.query('SELECT id, icon_identifier FROM developer_apps ORDER BY id');
+          if (apps.rows.length === 0) return;
+          const targetIdx = Math.abs(rawValue) % apps.rows.length;
+          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [targetIdx, deviceId]);
+          sendPixelIcon(client, deviceId, apps.rows[targetIdx].icon_identifier);
+        } 
+        else if (currentMenu === 'launcher') {
+          const apps = await pool.query('SELECT da.id, da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId]);
+          if (apps.rows.length === 0) { sendPixelIcon(client, deviceId, "yoto:cross"); return; }
+          const targetIdx = Math.abs(rawValue) % apps.rows.length;
+          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [targetIdx, deviceId]);
+          sendPixelIcon(client, deviceId, apps.rows[targetIdx].icon_identifier);
+        }
       }
 
-      if (type === 'button_pressed') {
-        const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
-        const session = sessionRes.rows[0];
-
-        if (session && session.current_app_id) {
-          const appRes = await pool.query('SELECT * FROM developer_apps WHERE id = $1', [session.current_app_id]);
-          const appLogic = appRes.rows[0].json_logic;
-          const currentState = appLogic.states[session.current_state_name || 'welcome'];
-
-          if (currentState.on_click === 'check_guess') {
-            let nextState = (session.current_dial_value === 7) ? 'win' : 'try_again';
-            await pool.query('UPDATE active_sessions SET current_state_name = $1 WHERE yoto_player_id = $2', [nextState, deviceId]);
-          }
+      if (event.type === 'right_button_pressed') {
+        if (currentMenu === 'home') {
+          const destinationMenu = (currentIdx === 0) ? 'store' : 'launcher';
+          await pool.query('UPDATE active_sessions SET current_state_name = $1, current_dial_value = 0 WHERE yoto_player_id = $2', [destinationMenu, deviceId]);
+          sendPixelIcon(client, deviceId, destinationMenu === 'store' ? "yoto:download" : "yoto:rocket");
+        } 
+        else if (currentMenu === 'store') {
+          const apps = await pool.query('SELECT id, app_name FROM developer_apps ORDER BY id');
+          if (apps.rows.length === 0) return;
+          const selectedApp = apps.rows[currentIdx];
+          await pool.query('INSERT INTO installed_apps (yoto_player_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [deviceId, selectedApp.id]);
+          sendPixelIcon(client, deviceId, "yoto:tick");
+        } 
+        else if (currentMenu === 'launcher') {
+          const apps = await pool.query('SELECT da.id, da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId]);
+          if (apps.rows.length === 0) return;
+          const selectedApp = apps.rows[currentIdx];
+          await pool.query("UPDATE active_sessions SET current_state_name = 'playing', current_app_id = $1, current_dial_value = 0 WHERE yoto_player_id = $2", [selectedApp.id, deviceId]);
+          sendPixelIcon(client, deviceId, "yoto:star");
         }
       }
     } catch (err) {
-      console.error("Live packet parsing matrix exception:", err);
+      console.error(err);
     }
   });
 }
 
-function sendPixelIconToPlayer(mqttClient, deviceId, iconName) {
-  mqttClient.publish(`/device/${deviceId}/cmd/display`, JSON.stringify({
-    command: "show_icon", icon: iconName, duration: 5000
-  }));
+function sendPixelIcon(mqttClient, deviceId, iconName) {
+  mqttClient.publish(`/device/${deviceId}/cmd/display`, JSON.stringify({ command: "show_icon", icon: iconName, duration: 3000 }));
 }
 
-// ENDPOINT 1: App Upload Intake Route
-app.post('/api/apps/upload', async (req, res) => {
-  try {
-    const { appName, iconIdentifier, jsonLogic } = req.body;
-    const result = await pool.query(
-      `INSERT INTO developer_apps (app_name, icon_identifier, json_logic) VALUES ($1, $2, $3) RETURNING *;`,
-      [appName, iconIdentifier, JSON.stringify(jsonLogic)]
-    );
-    res.status(201).json({ message: "🚀 Upload successful!", app: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ENDPOINT 2: Live Over-the-Air Player Audio Router
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   const { playerId } = req.params;
   try {
     let sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [playerId]);
     if (sessionRes.rows.length === 0) {
-      sessionRes = await pool.query('INSERT INTO active_sessions (yoto_player_id) VALUES ($1) RETURNING *', [playerId]);
+      await pool.query('INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) VALUES ($1, \'home\', 0)', [playerId]);
+      return res.redirect(`https://google.com{encodeURIComponent("Welcome to your app hub. Turn the right dial to browse options.")}`);
     }
+    
     const session = sessionRes.rows[0];
+    const currentMenu = session.current_state_name || 'home';
+    const currentIdx = session.current_dial_value || 0;
+    let speakText = "";
 
-    if (session.current_app_id) {
-      const appRes = await pool.query('SELECT * FROM developer_apps WHERE id = $1', [session.current_app_id]);
-      const logic = appRes.rows[0].json_logic;
-      const currentState = logic.states[session.current_state_name || 'welcome'];
-      return res.redirect(`https://yourtts.com{encodeURIComponent(currentState.audio_prompt)}`);
+    if (currentMenu === 'home') {
+      speakText = (currentIdx === 0) ? "App Store. Press the right dial to open." : "My Apps Launcher. Press the right dial to view your installed games.";
+    } 
+    else if (currentMenu === 'store') {
+      const apps = await pool.query('SELECT app_name FROM developer_apps ORDER BY id');
+      speakText = (apps.rows.length === 0) ? "The app store is empty." : `Store app catalog. Press dial to install, ${apps.rows[currentIdx].app_name}`;
+    } 
+    else if (currentMenu === 'launcher') {
+      const apps = await pool.query('SELECT da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [playerId]);
+      speakText = (apps.rows.length === 0) ? "You haven't installed any apps yet." : `Your library. Press dial to launch, ${apps.rows[currentIdx].app_name}`;
+    } 
+    else if (currentMenu === 'playing' && session.current_app_id) {
+      const appRes = await pool.query('SELECT json_logic FROM developer_apps WHERE id = $1', [session.current_app_id]);
+      speakText = appRes.rows[0].json_logic.states.welcome.audio_prompt;
     }
-    res.redirect('https://yourstorage.com');
-  } catch (err) {
-    res.status(500).send("Audio engine malfunction routing profiles.");
-  }
+
+    return res.redirect(`https://google.com{encodeURIComponent(speakText)}`);
+  } catch (err) { res.status(500).send("Audio engine failure."); }
 });
 
-// ENDPOINT 3: Secure PKCE OAuth Handshake Node
+app.get('/api/yoto/auth-url', (req, res) => {
+  const { redirect_uri, challenge } = req.query;
+  const url = `https://yoto.com{process.env.YOTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect_uri)}&response_type=code&scope=user%3Acontent%3Aview%20user%3Acontent%3Amanage%20offline_access&code_challenge=${challenge}&code_challenge_method=S256`;
+  res.json({ url });
+});
+
 app.post('/api/yoto/callback', async (req, res) => {
   const { authCode, codeVerifier } = req.body;
   try {
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const computedRedirectUri = `${protocol}://${req.headers.host}/callback.html`;
-
     const tokenResponse = await fetch('https://yoto.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: process.env.YOTO_CLIENT_ID, // Matches developer token passport identity
-        code: authCode,
-        code_verifier: codeVerifier, // Secure dynamic authorization verification string replaces secrets
-        redirect_uri: computedRedirectUri
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', client_id: process.env.YOTO_CLIENT_ID, code: authCode, code_verifier: codeVerifier, redirect_uri: computedRedirectUri })
     });
-
     const tokens = await tokenResponse.json();
-    if (!tokenResponse.ok) throw new Error(tokens.error_description || 'OAuth verification sequence failed.');
-
-    const playerResponse = await fetch('https://yoto.dev', {
-      headers: { 'Authorization': `Bearer ${tokens.access_token}` }
-    });
+    const playerResponse = await fetch('https://yoto.dev', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
     const playerData = await playerResponse.json();
-    const targetPlayerId = playerData.players?.[0]?.id; // Connects first home device instance array
+    const targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id;
 
-    if (!targetPlayerId) return res.status(400).json({ error: "No active player linked to this profile." });
-
-    await pool.query(`
-      INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) 
-      VALUES ($1, 'welcome', 0) ON CONFLICT (yoto_player_id) DO NOTHING;
-    `, [targetPlayerId]);
-
+    if (!targetPlayerId) return res.status(400).json({ error: "No player found." });
+    await pool.query("INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) VALUES ($1, 'home', 0) ON CONFLICT (yoto_player_id) DO NOTHING", [targetPlayerId]);
     startPlayerLiveSync(targetPlayerId, tokens.access_token);
     res.json({ success: true, playerId: targetPlayerId });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+app.post('/api/apps/upload', async (req, res) => {
+  try {
+    const { appName, iconIdentifier, jsonLogic } = req.body;
+    await pool.query('INSERT INTO developer_apps (app_name, icon_identifier, json_logic) VALUES ($1, $2, $3)', [appName, iconIdentifier, JSON.stringify(jsonLogic)]);
+    res.status(201).json({ message: "0x1F680 Upload successful!" });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/icons/save', async (req, res) => {
+  try {
+    const { iconName, pixelMatrix } = req.body;
+    await pool.query('INSERT INTO custom_icons (icon_name, pixel_matrix) VALUES ($1, $2) ON CONFLICT (icon_name) DO UPDATE SET pixel_matrix = $2', [iconName, pixelMatrix]);
+    res.status(201).json({ message: "0x1F3A8 Icon saved!" });
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Architecture Engine deployed online via port ${PORT}`));
+app.listen(PORT, () => console.log(`0x1F680 Engine listening on port ${PORT}`));
