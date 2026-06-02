@@ -23,7 +23,6 @@
     <h1>🦊 Yoto App Hub</h1>
     <p style="text-align: center; color: #666; margin-bottom: 30px;">Manage and build dynamic over-the-air software profiles for physical kids players.</p>
 
-    <!-- Block 1: Parent Link Integration -->
     <div class="card">
         <h3>📱 1. Yoto Player Integration</h3>
         <p style="color: #555; font-size: 14px;">Connect your master developer household account to register child hardware IDs.</p>
@@ -31,7 +30,6 @@
         <p id="connectionStatus"></p>
     </div>
 
-    <!-- Block 2: App Submission Form -->
     <div class="card">
         <h3>🚀 2. Developer Studio</h3>
         <p style="color: #555; font-size: 14px;">Publish automated code state modules directly into the cloud storage directory.</p>
@@ -52,7 +50,6 @@
         </form>
     </div>
 
-    <!-- Block 3: Custom Pixel Art Canvas Creator -->
     <div class="card">
         <h3>🎨 3. 16x16 Pixel Art Studio</h3>
         <p style="color: #555; font-size: 14px;">Click the grid squares to design custom graphics for your Yoto screen.</p>
@@ -63,12 +60,9 @@
     </div>
 
     <script>
-        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE (WITHOUT A TRAILING SLASH):
         const RENDER_BACKEND_URL = "https://onrender.com"; 
-
         const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
-        // Build the 16x16 Canvas Interface dynamically
         const gridContainer = document.getElementById('pixelGrid');
         for (let i = 0; i < 256; i++) {
             const pixel = document.createElement('div');
@@ -97,7 +91,6 @@
             });
         });
 
-        // Save Custom Pixel Art Canvas Array Matrix to Neon via Render API Proxy
         document.getElementById('saveIconBtn').addEventListener('click', async () => {
             const iconName = document.getElementById('customIconName').value || 'custom_icon';
             const pixels = Array.from(document.querySelectorAll('#pixelGrid div')).map(p => p.dataset.active === "true" ? 1 : 0);
@@ -108,19 +101,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ iconName, pixelMatrix: pixels })
                 });
-                if (response.ok) alert(`🎨 Custom icon "${iconName}" saved over-the-air!`);
+                if (response.ok) alert(`0x1F3A8 Custom icon "${iconName}" saved over-the-air!`);
             } catch (err) {
                 alert("❌ Failed to save custom icon to Render backend.");
             }
         });
 
-        // Detect if coming back from a successful connection redirect
         if (new URLSearchParams(window.location.search).get('connected') === 'true') {
             document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
             document.getElementById('connectionStatus').style.color = "#4caf50";
         }
 
-        // Cryptographic Generator Helpers for Secretless PKCE Authorization Flow
         function generateRandomString(length) {
             const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
             let text = '';
@@ -147,10 +138,8 @@
                 .replace(/=+$/, '');
         }
 
-        // Redirect user safely to Yoto Authorization Matrix Proxy
         document.getElementById('connectYotoBtn').addEventListener('click', async () => {
             const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
-
             const verifier = generateRandomString(64);
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
             const challenge = await generateCodeChallenge(verifier);
@@ -164,7 +153,6 @@
             }
         });
 
-        // App creation submission handler logic
         document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const appPayload = {
@@ -186,10 +174,13 @@
                     body: JSON.stringify(appPayload)
                 });
                 if (response.ok) {
-                    alert("🎉 Success! App logic template deployed dynamically.");
+                    alert("0x1F389 Success! App logic template deployed dynamically.");
                     document.getElementById('appUploadForm').reset();
                 }
             } catch (err) {
                 alert("❌ Cannot reach your Render server backend instance.");
             }
         });
+    </script>
+</body>
+</html>
