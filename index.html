@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yoto Custom OS Studio</title>
+    <title>Yoto OS Control Deck & Compiler</title>
     <style>
         body { 
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            font-family: system-ui, -apple-system, sans-serif; 
             max-width: 650px; 
             margin: 0 auto; 
             padding: 40px 20px; 
@@ -18,14 +18,13 @@
             padding: 30px; 
             margin-bottom: 25px; 
             border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
         }
         h1 { color: #ff6b35; text-align: center; margin-bottom: 5px; }
         h3 { margin-top: 0; color: #222; border-bottom: 2px solid #f4f6f8; padding-bottom: 10px; }
-        h4 { margin: 15px 0 5px 0; color: #ff6b35; }
         p.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
-        label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 5px; }
-        input, textarea { 
+        label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 8px; }
+        input[type="text"], input[type="file"] { 
             width: 100%; 
             padding: 12px; 
             margin-bottom: 18px; 
@@ -34,7 +33,6 @@
             box-sizing: border-box; 
             font-size: 14px; 
         }
-        textarea { resize: vertical; }
         button { 
             background: #ff6b35; 
             color: white; 
@@ -48,8 +46,8 @@
             transition: background 0.2s;
         }
         button:hover { background: #e55a2b; }
-        .compile-btn { background: #2b6cb0; }
-        .compile-btn:hover { background: #2b5c8f; }
+        .upload-btn { background: #2b6cb0; }
+        .upload-btn:hover { background: #2b5c8f; }
         #statusAlert { 
             margin-top: 15px; 
             padding: 12px; 
@@ -58,74 +56,74 @@
             text-align: center; 
             display: none; 
         }
+        .file-zone {
+            border: 2px dashed #cbd5e1;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8fafc;
+            text-align: center;
+            margin-bottom: 18px;
+        }
     </style>
 </head>
 <body>
 
     <h1>🦊 Yoto OS Control Center</h1>
-    <p class="subtitle">Authenticate hardware links and compile custom state-driven .yexe scripts.</p>
+    <p class="subtitle">Authenticate hardware links and deploy structural apps directly over the air.</p>
 
     <div class="card">
         <h3>🔌 1. Hardware Registration Link</h3>
         <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-            Synchronize your Yoto player with your custom server database via secure authorization handshake protocols.
+            Synchronize your physical Yoto Player account with your custom OS database runtime.
         </p>
         <button id="authBtn">Connect via Yoto Developer Account</button>
         <div id="statusAlert"></div>
     </div>
 
     <div class="card">
-        <h3>🛠️ 2. .yexe Software Compiler Studio</h3>
+        <h3>🛠️ 2. Direct .yexe App Store Uploader</h3>
         <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
-            Design structural states for your app. The system ignores the left knob, maps the right knob to cycle choices, and sets the right button to execute actions.
+            Select a compiled text-adventure structure or JSON map file (`.yexe`) from your hard drive to publish it to your home launcher app store.
         </p>
         
-        <form id="compilerForm">
-            <label for="appName">Application Title</label>
-            <input type="text" id="appName" placeholder="e.g., Space Odyssey" required>
+        <form id="yexeUploadForm">
+            <label for="appName">Override App Title Display Name</label>
+            <input type="text" id="appName" placeholder="e.g., Haunted Castle Quest" required>
             
-            <label for="iconIdentifier">System Display Pixel Icon (16x16 reference identifier)</label>
-            <input type="text" id="iconIdentifier" placeholder="e.g., yoto:rocket" required>
+            <label for="iconIdentifier">Default Matrix LED Icon Identifier</label>
+            <input type="text" id="iconIdentifier" placeholder="e.g., yoto:magnet" required>
 
-            <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 20px 0;">
-            
-            <h3>📂 Execution Logic Mapping</h3>
-            
-            <h4>Scene 1: App Entry State ("start")</h4>
-            <label for="promptStart">Intro Audio Script (Explaining the paths / choices)</label>
-            <textarea id="promptStart" rows="3" placeholder="Welcome to deep space. Turn the right dial to navigate your ship. Choice zero is Mars, choice one is Jupiter." required></textarea>
+            <label>Select Executable Container file</label>
+            <div class="file-zone">
+                <input type="file" id="yexeFile" accept=".yexe,.json" required>
+                <p style="font-size: 12px; color: #64748b; margin: 0;">Accepts raw format .yexe configurations</p>
+            </div>
 
-            <h4>Scene 2: Branch Choice 0 ("zero")</h4>
-            <label for="promptZero">Result Audio Script (When Right Dial is at 0 and Right Button is pressed)</label>
-            <textarea id="promptZero" rows="2" placeholder="Touchdown successful on Mars! You discovered alien artifacts. Press Left Button to exit back home." required></textarea>
-
-            <h4>Scene 3: Branch Choice 1 ("one")</h4>
-            <label for="promptOne">Result Audio Script (When Right Dial is at 1 and Right Button is pressed)</label>
-            <textarea id="promptOne" rows="2" placeholder="Oh no, you flew right into a massive cosmic storm! Game over. Press Left Button to return home." required></textarea>
-
-            <button type="submit" class="compile-btn">Assemble & Upload .yexe Package</button>
+            <button type="submit" class="upload-btn">Deploy .yexe Package to App Store</button>
         </form>
     </div>
 
     <script>
-        // Check URL flags to give visual feedback when successfully linked
+        // Provide user visual feedback if callback hands over control successfully
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('connected') === 'true') {
             const alertDiv = document.getElementById('statusAlert');
             alertDiv.style.display = 'block';
             alertDiv.style.background = '#c6f6d5';
             alertDiv.style.color = '#22543d';
-            alertDiv.innerText = '✅ OS Kernel Framework successfully locked onto target hardware player!';
+            alertDiv.innerText = '✅ OS Kernel successfully locked onto target hardware player!';
         }
 
-        // SECURE AUTHENTICATION REDIRECT TRIGGER
+        // FULLY FUNCTIONAL OAUTH REDIRECT GENERATOR
         document.getElementById('authBtn').addEventListener('click', async () => {
-            // 1. Generate secure high-entropy random sequence for PKCE verification
+            // Generate a secure high-entropy random sequence for PKCE verification safety rules
             const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
                 .map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            // Save token key explicitly with the name callback.html expects!
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
             
-            // 2. Hash sequence down into a SHA-256 challenge code
+            // Hash down sequence via SHA-256
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
             const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
                 .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -133,65 +131,68 @@
             const redirectUri = `${window.location.origin}/callback.html`;
             
             try {
-                // 3. Ask backend server to dynamically construct the security portal link
+                // Fetch dynamic url generation string using Render environmental keys
                 const res = await fetch(`${window.location.origin}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
                 const data = await res.json();
                 
-                // 4. Force user navigation to secure official login gate
+                // Route user straight out to official gateway verification page
                 window.location.href = data.url;
             } catch (err) {
-                alert("Could not pull login signature maps from backend. Verify your Render server is awake!");
+                alert("Could not build authentication loop. Ensure your Render backend is running and healthy!");
             }
         });
 
-        // COMPILER PACKAGING INTERFACE HANDLER
-        document.getElementById('compilerForm').addEventListener('submit', async (e) => {
+        // ASYNCHRONOUS FILE PARSER & COMPILER HANDLER
+        document.getElementById('yexeUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Construct structural JSON translation matrix representation of .yexe format requirements
-            const yexePayload = {
-                appName: document.getElementById('appName').value,
-                iconIdentifier: document.getElementById('iconIdentifier').value,
-                yexeData: {
-                    format: "yexe-v1",
-                    entry: "start",
-                    executable: {
-                        start: {
-                            display: document.getElementById('iconIdentifier').value,
-                            audio_prompt: document.getElementById('promptStart').value,
-                            type: "decision",
-                            branches: ["zero", "one"]
-                        },
-                        zero: {
-                            display: "yoto:tick",
-                            audio_prompt: document.getElementById('promptZero').value,
-                            type: "end"
-                        },
-                        one: {
-                            display: "yoto:cross",
-                            audio_prompt: document.getElementById('promptOne').value,
-                            type: "end"
-                        }
+            const fileInput = document.getElementById('yexeFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please pick a .yexe file first.");
+                return;
+            }
+
+            // Read the binary text stream from the file interface directly
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const parsedYexeData = JSON.parse(event.target.result);
+
+                    // Re-verify framework protocol structure before delivery
+                    if (parsedYexeData.format !== 'yexe-v1') {
+                        alert("Validation error: Selected file format identifier is missing 'yexe-v1' definitions.");
+                        return;
                     }
+
+                    const appPayload = {
+                        appName: document.getElementById('appName').value,
+                        iconIdentifier: document.getElementById('iconIdentifier').value,
+                        yexeData: parsedYexeData
+                    };
+
+                    // Forward payload to backend endpoint
+                    const response = await fetch(`${window.location.origin}/api/apps/compile`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(appPayload)
+                    });
+
+                    if (response.ok) {
+                        alert("🎉 App successfully updated! Container compiled and deployed onto your system Store distribution registry.");
+                        document.getElementById('yexeUploadForm').reset();
+                    } else {
+                        const errResponse = await response.json();
+                        alert(`❌ Server rejected application container: ${errResponse.error}`);
+                    }
+
+                } catch (parseError) {
+                    alert("❌ Invalid JSON file. Ensure your .yexe code array does not contain syntax formatting errors.");
                 }
             };
 
-            try {
-                const response = await fetch(`${window.location.origin}/api/apps/compile`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(yexePayload)
-                });
-
-                if (response.ok) {
-                    alert("🎉 Success! Your code logic was compiled into a .yexe structural container and uploaded to the Cloud App Store distribution registry.");
-                    document.getElementById('compilerForm').reset();
-                } else {
-                    alert("❌ App execution compilation error. Backend discarded structural payload package.");
-                }
-            } catch (err) {
-                alert("❌ Connection timeout. Cannot communicate with compiling engine pipelines.");
-            }
+            reader.readAsText(file);
         });
     </script>
 </body>
