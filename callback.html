@@ -29,16 +29,16 @@
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
             
-            // Retrieve verification code from session cache
+            // Extract the generated verification key out of our session memory
             const savedVerifier = sessionStorage.getItem('yoto_pkce_verifier');
 
             if (!authCode) {
-                showError("No auth code returned from Yoto.");
+                showError("No authorization credentials returned from Yoto gateway.");
                 return;
             }
 
             try {
-                // 🔧 CHANGE THE LINK BELOW TO MATCH YOUR REAL RENDER SERVICE ADDRESS:
+                // 🔧 CHANGE THE LINK BELOW TO MATCH YOUR REAL RENDER APP ROUTE:
                 const response = await fetch('https://onrender.com', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -54,10 +54,10 @@
                     localStorage.setItem('yoto_player_id', data.playerId);
                     window.location.href = 'index.html?connected=true';
                 } else {
-                    showError(data.error || "The server rejected the credentials.");
+                    showError(data.error || "The cloud server rejected the credentials.");
                 }
             } catch (error) {
-                showError("Failed to reach your Render web service backend.");
+                showError("Failed to establish contact with your Render backend engine.");
             }
         }
 
