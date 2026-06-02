@@ -104,7 +104,9 @@
     </div>
 
     <script>
-        // Provide user visual feedback if callback hands over control successfully
+        // HARDCODED PRODUCTION TARGET
+        const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
+
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('connected') === 'true') {
             const alertDiv = document.getElementById('statusAlert');
@@ -114,35 +116,29 @@
             alertDiv.innerText = '✅ OS Kernel successfully locked onto target hardware player!';
         }
 
-        // FULLY FUNCTIONAL OAUTH REDIRECT GENERATOR
         document.getElementById('authBtn').addEventListener('click', async () => {
-            // Generate a secure high-entropy random sequence for PKCE verification safety rules
             const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
                 .map(b => b.toString(16).padStart(2, '0')).join('');
             
-            // Save token key explicitly with the name callback.html expects!
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
             
-            // Hash down sequence via SHA-256
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
             const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
                 .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             
-            const redirectUri = `${window.location.origin}/callback.html`;
+            const redirectUri = `${TARGET_SERVER}/callback.html`;
             
             try {
-                // Fetch dynamic url generation string using Render environmental keys
-                const res = await fetch(`${window.location.origin}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
+                // Requesting Auth URL from hardcoded server instance
+                const res = await fetch(`${TARGET_SERVER}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
                 const data = await res.json();
                 
-                // Route user straight out to official gateway verification page
                 window.location.href = data.url;
             } catch (err) {
-                alert("Could not build authentication loop. Ensure your Render backend is running and healthy!");
+                alert("Could not build authentication loop. Ensure your Render backend is running!");
             }
         });
 
-        // ASYNCHRONOUS FILE PARSER & COMPILER HANDLER
         document.getElementById('yexeUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -154,13 +150,11 @@
                 return;
             }
 
-            // Read the binary text stream from the file interface directly
             const reader = new FileReader();
             reader.onload = async function(event) {
                 try {
                     const parsedYexeData = JSON.parse(event.target.result);
 
-                    // Re-verify framework protocol structure before delivery
                     if (parsedYexeData.format !== 'yexe-v1') {
                         alert("Validation error: Selected file format identifier is missing 'yexe-v1' definitions.");
                         return;
@@ -172,15 +166,14 @@
                         yexeData: parsedYexeData
                     };
 
-                    // Forward payload to backend endpoint
-                    const response = await fetch(`${window.location.origin}/api/apps/compile`, {
+                    const response = await fetch(`${TARGET_SERVER}/api/apps/compile`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(appPayload)
                     });
 
                     if (response.ok) {
-                        alert("🎉 App successfully updated! Container compiled and deployed onto your system Store distribution registry.");
+                        alert("🎉 App uploaded! Container deployed successfully onto your Render registry.");
                         document.getElementById('yexeUploadForm').reset();
                     } else {
                         const errResponse = await response.json();
@@ -188,7 +181,7 @@
                     }
 
                 } catch (parseError) {
-                    alert("❌ Invalid JSON file. Ensure your .yexe code array does not contain syntax formatting errors.");
+                    alert("❌ Invalid JSON file. Ensure your .yexe layout does not contain formatting errors.");
                 }
             };
 
