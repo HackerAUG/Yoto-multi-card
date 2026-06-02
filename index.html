@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoto App Store & Developer Studio</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f4f6f8; color: #333; }
+        .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1 { color: #ff6b35; text-align: center; }
+        h3 { margin-top: 0; color: #222; }
+        button { background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; }
+        button:hover { background: #e55a2b; }
+        input, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .submit-btn { background: #4caf50; }
+        .submit-btn:hover { background: #43a047; }
+        #connectionStatus { font-weight: bold; text-align: center; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <h1>🦊 Yoto App Hub</h1>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">Manage and build dynamic over-the-air software profiles for physical kids players.</p>
+
+    <!-- Block 1: Parent Link Integration -->
+    <div class="card">
+        <h3>📱 1. Yoto Player Integration</h3>
+        <p style="color: #555; font-size: 14px;">Connect your master developer household account to register child hardware IDs.</p>
+        <button id="connectYotoBtn">🔌 Link my Yoto Player</button>
+        <p id="connectionStatus"></p>
+    </div>
+
+    <!-- Block 2: App Submission Form -->
+    <div class="card">
+        <h3>🚀 2. Developer Studio</h3>
+        <p style="color: #555; font-size: 14px;">Publish automated code state modules directly into the cloud storage directory.</p>
+        <form id="appUploadForm">
+            <input type="text" id="appName" placeholder="Application Name (e.g., Math Whiz)" required>
+            <input type="text" id="iconIdentifier" placeholder="Pixel Art Screen Icon ID (e.g., pixel_rocket)" required>
+            <textarea id="audioPrompt" placeholder="What the speaker will voice out when card slides inside player..." rows="3" required></textarea>
+            <button type="submit" class="submit-btn">Publish App to Store</button>
+        </form>
+    </div>
+
+    <script>
+        // 🔧 PASTE YOUR REAL YOTO CLIENT ID HERE AFTER STEP 4 BELOW:
+        const YOTO_CLIENT_ID = "YOUR_REAL_YOTO_CLIENT_ID"; 
+        
+        // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE:
+        const RENDER_BACKEND_URL = "https://onrender.com"; 
+
+        const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
+
+        // 1. Check URL parameters for successful handshake redirect flags
+        if (new URLSearchParams(window.location.search).get('connected') === 'true') {
+            document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
+            document.getElementById('connectionStatus').style.color = "#4caf50";
+        }
+
+        // 2. Redirect sequence navigating to Yoto accounts gateway
+        document.getElementById('connectYotoBtn').addEventListener('click', () => {
+            const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
+            const scopes = "user:content:view user:content:manage offline_access";
+            window.location.href = `https://yoto.dev{YOTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+        });
+
+        // 3. Post user data directly to Neon DB through Render backend pipeline
+        document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const appPayload = {
+                appName: document.getElementById('appName').value,
+                iconIdentifier: document.getElementById('iconIdentifier').value,
+                jsonLogic: {
+                    states: {
+                        welcome: {
+                            audio_prompt: document.getElementById('audioPrompt').value,
+                            on_click: "check_guess"
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetch(`${RENDER_BACKEND_URL}/api/apps/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appPayload)
+                });
+                
+                if (response.ok) {
+                    alert("🎉 Success! Your code blueprint is uploaded over-the-air into your Neon DB.");
+                    document.getElementById('appUploadForm').reset();
+                } else {
+                    alert("⚠️ Server communication failed during upload save script.");
+                }
+            } catch (err) {
+                alert("❌ Cannot establish connection to your Render Web Service.");
+            }
+        });
+    </script>
+</body>
+</html>
