@@ -1,27 +1,15 @@
 {
-  "format": "yexe-v1",
-  "meta": {
-    "title": "Space Adventure",
-    "author": "DevStudio",
-    "version": "1.0.0"
+  "name": "yoto-custom-os",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
   },
-  "entry": "start",
-  "executable": {
-    "start": {
-      "display": "yoto:rocket",
-      "audio_prompt": "You are in a spaceship. Turn the dial to choose your course. Position 0 is Mars, Position 1 is Jupiter.",
-      "type": "decision",
-      "branches": ["mars_landing", "jupiter_storm"]
-    },
-    "mars_landing": {
-      "display": "yoto:tick",
-      "audio_prompt": "Touchdown successful on the red planet! Press the left button to return home.",
-      "type": "end"
-    },
-    "jupiter_storm": {
-      "display": "yoto:cross",
-      "audio_prompt": "Oh no! A massive storm trapped the ship. Press left dial to reset.",
-      "type": "end"
-    }
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "mqtt": "^5.5.0"
   }
 }
