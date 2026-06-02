@@ -3,12 +3,20 @@ import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import mqtt from 'mqtt';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Serve the frontend operating center static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 const { Pool } = pg;
 const pool = new Pool({
@@ -16,18 +24,31 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-function startPlayerLiveSync(deviceId, accessToken) {
-  const MQTT_URL = "wss://://amazonaws.com";
-  const clientIdentifier = `OS_${deviceId}_${Math.floor(Math.random() * 1000)}`;
+// Hardware driver utility to transmit visualization signals via MQTT
+function sendPixelIcon(mqttClient, deviceId, iconName) {
+  mqttClient.publish(
+    `/device/${deviceId}/cmd/display`, 
+    JSON.stringify({ command: "show_icon", icon: iconName, duration: 5000 })
+  );
+}
+
+// Background Hardware State Machine Engine
+function startOSKernel(deviceId, accessToken) {
+  const MQTT_URL = process.env.YOTO_MQTT_URL || "wss://amazonaws.com";
+  const clientIdentifier = `YOTO_OS_${deviceId}_${Math.floor(Math.random() * 1000)}`;
 
   const client = mqtt.connect(MQTT_URL, {
-    keepalive: 300, port: 443, protocol: "wss",
+    keepalive: 300, 
+    port: 443, 
+    protocol: "wss",
     username: `${deviceId}?x-amz-customauthorizer-name=PublicJWTAuthorizer`,
-    password: accessToken, clientId: clientIdentifier, ALPNProtocols: ["x-amzn-mqtt-ca"]
+    password: accessToken, 
+    clientId: clientIdentifier, 
+    ALPNProtocols: ["x-amzn-mqtt-ca"]
   });
 
   client.on('connect', () => {
-    console.log(`0x1F4E1 App Store Engine locked onto player: ${deviceId}`);
+    console.log(`[OS KERNEL] Boot sequence complete. Monitoring Player ID: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
@@ -35,83 +56,124 @@ function startPlayerLiveSync(deviceId, accessToken) {
     try {
       const event = JSON.parse(message.toString());
       
-      const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
-      if (sessionRes.rows.length === 0) return;
+      let sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
+      if (sessionRes.rows.length === 0) {
+        await pool.query('INSERT INTO active_sessions (yoto_player_id) VALUES ($1)', [deviceId]);
+        return;
+      }
+      
       const session = sessionRes.rows[0];
       let currentMenu = session.current_state_name || 'home'; 
       let currentIdx = session.current_dial_value || 0;
 
+      // SPECIFICATION 1: Left Button hardware trigger forces Home fallback reset
       if (event.type === 'left_button_pressed') {
         await pool.query(
-          "UPDATE active_sessions SET current_state_name = 'home', current_dial_value = 0, current_app_id = NULL WHERE yoto_player_id = $1",
+          "UPDATE active_sessions SET current_state_name = 'home', current_dial_value = 0, current_app_id = NULL, current_scene_node = 'start' WHERE yoto_player_id = $1",
           [deviceId]
         );
         sendPixelIcon(client, deviceId, "yoto:home");
         return;
       }
 
+      // SPECIFICATION 2: Turning the Right Dial scrolls options inside active software contexts
       if (event.type === 'right_dial_turned') {
-        const rawValue = event.value; 
+        const rawValue = Math.abs(event.value || 0); 
 
         if (currentMenu === 'home') {
-          const choice = Math.abs(rawValue) % 2;
-          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [choice, deviceId]);
-          sendPixelIcon(client, deviceId, choice === 0 ? "yoto:basket" : "yoto:play");
+          const installedRes = await pool.query(
+            'SELECT da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id',
+            [deviceId]
+          );
+          const totalOptions = installedRes.rows.length + 1; // Index 0 is always App Store
+          const targetIdx = rawValue % totalOptions;
+          
+          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [targetIdx, deviceId]);
+          
+          if (targetIdx === 0) {
+            sendPixelIcon(client, deviceId, "yoto:download");
+          } else {
+            sendPixelIcon(client, deviceId, installedRes.rows[targetIdx - 1].icon_identifier);
+          }
         } 
         else if (currentMenu === 'store') {
           const apps = await pool.query('SELECT id, icon_identifier FROM developer_apps ORDER BY id');
           if (apps.rows.length === 0) return;
-          const targetIdx = Math.abs(rawValue) % apps.rows.length;
+          const targetIdx = rawValue % apps.rows.length;
+          
           await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [targetIdx, deviceId]);
           sendPixelIcon(client, deviceId, apps.rows[targetIdx].icon_identifier);
-        } 
-        else if (currentMenu === 'launcher') {
-          const apps = await pool.query('SELECT da.id, da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId]);
-          if (apps.rows.length === 0) { sendPixelIcon(client, deviceId, "yoto:cross"); return; }
-          const targetIdx = Math.abs(rawValue) % apps.rows.length;
-          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [targetIdx, deviceId]);
-          sendPixelIcon(client, deviceId, apps.rows[targetIdx].icon_identifier);
+        }
+        else if (currentMenu === 'playing' && session.current_app_id) {
+          const appRes = await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id]);
+          const yexe = appRes.rows[0].executable_data;
+          const currentScene = yexe.executable[session.current_scene_node || yexe.entry];
+          
+          if (currentScene && currentScene.type === 'decision') {
+            const branchIdx = rawValue % currentScene.branches.length;
+            await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [branchIdx, deviceId]);
+          }
         }
       }
 
+      // SPECIFICATION 3: Right Button triggers Action Selection/Execution environments
       if (event.type === 'right_button_pressed') {
         if (currentMenu === 'home') {
-          const destinationMenu = (currentIdx === 0) ? 'store' : 'launcher';
-          await pool.query('UPDATE active_sessions SET current_state_name = $1, current_dial_value = 0 WHERE yoto_player_id = $2', [destinationMenu, deviceId]);
-          sendPixelIcon(client, deviceId, destinationMenu === 'store' ? "yoto:download" : "yoto:rocket");
+          if (currentIdx === 0) {
+            await pool.query('UPDATE active_sessions SET current_state_name = \'store\', current_dial_value = 0 WHERE yoto_player_id = $1', [deviceId]);
+            sendPixelIcon(client, deviceId, "yoto:download");
+          } else {
+            const installedRes = await pool.query(
+              'SELECT da.id, da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id',
+              [deviceId]
+            );
+            const selectedApp = installedRes.rows[currentIdx - 1];
+            
+            await pool.query(
+              "UPDATE active_sessions SET current_state_name = 'playing', current_app_id = $1, current_dial_value = 0, current_scene_node = 'start' WHERE yoto_player_id = $2", 
+              [selectedApp.id, deviceId]
+            );
+            sendPixelIcon(client, deviceId, selectedApp.icon_identifier);
+          }
         } 
         else if (currentMenu === 'store') {
-          const apps = await pool.query('SELECT id, app_name FROM developer_apps ORDER BY id');
+          const apps = await pool.query('SELECT id FROM developer_apps ORDER BY id');
           if (apps.rows.length === 0) return;
           const selectedApp = apps.rows[currentIdx];
+          
           await pool.query('INSERT INTO installed_apps (yoto_player_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [deviceId, selectedApp.id]);
-          sendPixelIcon(client, deviceId, "yoto:tick");
-        } 
-        else if (currentMenu === 'launcher') {
-          const apps = await pool.query('SELECT da.id, da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId]);
-          if (apps.rows.length === 0) return;
-          const selectedApp = apps.rows[currentIdx];
-          await pool.query("UPDATE active_sessions SET current_state_name = 'playing', current_app_id = $1, current_dial_value = 0 WHERE yoto_player_id = $2", [selectedApp.id, deviceId]);
-          sendPixelIcon(client, deviceId, "yoto:star");
+          sendPixelIcon(client, deviceId, "yoto:tick"); 
+        }
+        else if (currentMenu === 'playing' && session.current_app_id) {
+          const appRes = await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id]);
+          const yexe = appRes.rows[0].executable_data;
+          const currentScene = yexe.executable[session.current_scene_node || yexe.entry];
+          
+          if (currentScene && currentScene.type === 'decision') {
+            const nextNode = currentScene.branches[currentIdx];
+            const targetScene = yexe.executable[nextNode];
+            
+            await pool.query(
+              'UPDATE active_sessions SET current_scene_node = $1, current_dial_value = 0 WHERE yoto_player_id = $2', 
+              [nextNode, deviceId]
+            );
+            sendPixelIcon(client, deviceId, targetScene.display || "yoto:play");
+          }
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("[KERNEL ERROR]", err);
     }
   });
 }
 
-function sendPixelIcon(mqttClient, deviceId, iconName) {
-  mqttClient.publish(`/device/${deviceId}/cmd/display`, JSON.stringify({ command: "show_icon", icon: iconName, duration: 3000 }));
-}
-
+// OS Audio Stream Synthesis Output Engine
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   const { playerId } = req.params;
   try {
     let sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [playerId]);
     if (sessionRes.rows.length === 0) {
-      await pool.query('INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) VALUES ($1, \'home\', 0)', [playerId]);
-      return res.redirect(`https://google.com{encodeURIComponent("Welcome to your app hub. Turn the right dial to browse options.")}`);
+      return res.redirect(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent("OS Booted")}`);
     }
     
     const session = sessionRes.rows[0];
@@ -120,67 +182,84 @@ app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
     let speakText = "";
 
     if (currentMenu === 'home') {
-      speakText = (currentIdx === 0) ? "App Store. Press the right dial to open." : "My Apps Launcher. Press the right dial to view your installed games.";
+      if (currentIdx === 0) {
+        speakText = "App Store. Click right dial button to open.";
+      } else {
+        const installedRes = await pool.query(
+          'SELECT da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id',
+          [playerId]
+        );
+        speakText = `Launch ${installedRes.rows[currentIdx - 1].app_name}`;
+      }
     } 
     else if (currentMenu === 'store') {
       const apps = await pool.query('SELECT app_name FROM developer_apps ORDER BY id');
-      speakText = (apps.rows.length === 0) ? "The app store is empty." : `Store app catalog. Press dial to install, ${apps.rows[currentIdx].app_name}`;
-    } 
-    else if (currentMenu === 'launcher') {
-      const apps = await pool.query('SELECT da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [playerId]);
-      speakText = (apps.rows.length === 0) ? "You haven't installed any apps yet." : `Your library. Press dial to launch, ${apps.rows[currentIdx].app_name}`;
+      speakText = apps.rows.length === 0 ? "Store Empty" : `App Store Catalog. Click right dial to download ${apps.rows[currentIdx].app_name}`;
     } 
     else if (currentMenu === 'playing' && session.current_app_id) {
-      const appRes = await pool.query('SELECT json_logic FROM developer_apps WHERE id = $1', [session.current_app_id]);
-      speakText = appRes.rows[0].json_logic.states.welcome.audio_prompt;
+      const appRes = await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id]);
+      const yexe = appRes.rows[0].executable_data;
+      const scene = yexe.executable[session.current_scene_node || yexe.entry];
+      speakText = scene ? scene.audio_prompt : "Application Running";
     }
 
-    return res.redirect(`https://google.com{encodeURIComponent(speakText)}`);
-  } catch (err) { res.status(500).send("Audio engine failure."); }
+    return res.redirect(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(speakText)}`);
+  } catch (err) { 
+    res.status(500).send("Audio engine failure."); 
+  }
 });
 
+// OAuth Integration Core Gateway Auth Verification Pipeline
 app.get('/api/yoto/auth-url', (req, res) => {
   const { redirect_uri, challenge } = req.query;
-  const url = `https://yoto.com{process.env.YOTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect_uri)}&response_type=code&scope=user%3Acontent%3Aview%20user%3Acontent%3Amanage%20offline_access&code_challenge=${challenge}&code_challenge_method=S256`;
+  const url = `https://yoto.com/oauth/authorize?client_id=${process.env.YOTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect_uri)}&response_type=code&scope=user%3Acontent%3Aview%20user%3Acontent%3Amanage%20offline_access&code_challenge=${challenge}&code_challenge_method=S256`;
   res.json({ url });
 });
 
 app.post('/api/yoto/callback', async (req, res) => {
-  const { authCode, codeVerifier } = req.body;
+  const { authCode, codeVerifier, redirectUri } = req.body;
   try {
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const computedRedirectUri = `${protocol}://${req.headers.host}/callback.html`;
-    const tokenResponse = await fetch('https://yoto.dev', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'authorization_code', client_id: process.env.YOTO_CLIENT_ID, code: authCode, code_verifier: codeVerifier, redirect_uri: computedRedirectUri })
+    const tokenResponse = await fetch('https://yoto.dev/oauth/token', {
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ 
+        grant_type: 'authorization_code', 
+        client_id: process.env.YOTO_CLIENT_ID || '', 
+        code: authCode, 
+        code_verifier: codeVerifier, 
+        redirect_uri: redirectUri 
+      })
     });
     const tokens = await tokenResponse.json();
-    const playerResponse = await fetch('https://yoto.dev', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
+    
+    const playerResponse = await fetch('https://yoto.dev/api/v1/players', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
     const playerData = await playerResponse.json();
-    const targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id;
+    const targetPlayerId = playerData.players?.[0]?.id;
 
-    if (!targetPlayerId) return res.status(400).json({ error: "No player found." });
-    await pool.query("INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) VALUES ($1, 'home', 0) ON CONFLICT (yoto_player_id) DO NOTHING", [targetPlayerId]);
-    startPlayerLiveSync(targetPlayerId, tokens.access_token);
+    if (!targetPlayerId) return res.status(400).json({ error: "No players discovered on hardware link." });
+    
+    await pool.query("INSERT INTO active_sessions (yoto_player_id) VALUES ($1) ON CONFLICT DO NOTHING", [targetPlayerId]);
+    startOSKernel(targetPlayerId, tokens.access_token);
+    
     res.json({ success: true, playerId: targetPlayerId });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(500).json({ error: error.message }); 
+  }
 });
 
-app.post('/api/apps/upload', async (req, res) => {
+// .yexe Software Compiler Interface Pipeline
+app.post('/api/apps/compile', async (req, res) => {
   try {
-    const { appName, iconIdentifier, jsonLogic } = req.body;
-    await pool.query('INSERT INTO developer_apps (app_name, icon_identifier, json_logic) VALUES ($1, $2, $3)', [appName, iconIdentifier, JSON.stringify(jsonLogic)]);
-    res.status(201).json({ message: "0x1F680 Upload successful!" });
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/api/icons/save', async (req, res) => {
-  try {
-    const { iconName, pixelMatrix } = req.body;
-    await pool.query('INSERT INTO custom_icons (icon_name, pixel_matrix) VALUES ($1, $2) ON CONFLICT (icon_name) DO UPDATE SET pixel_matrix = $2', [iconName, pixelMatrix]);
-    res.status(201).json({ message: "0x1F3A8 Icon saved!" });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+    const { appName, iconIdentifier, yexeData } = req.body;
+    await pool.query(
+      'INSERT INTO developer_apps (app_name, icon_identifier, executable_data) VALUES ($1, $2, $3)', 
+      [appName, iconIdentifier, JSON.stringify(yexeData)]
+    );
+    res.status(201).json({ message: "Successfully compiled and deployed .yexe architecture container!" });
+  } catch (error) { 
+    res.status(500).json({ error: error.message }); 
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`0x1F680 Engine listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`🦊 OS Kernel System running on port ${PORT}`));
