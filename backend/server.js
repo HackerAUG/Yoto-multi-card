@@ -17,10 +17,10 @@ const pool = new Pool({
 });
 
 /**
- * 📡 MQTT DIRECT SYSTEM LINK LOOP
+ * 📡 MQTT REAL-TIME SYSTEM ENGINE LINK
  */
 function startPlayerLiveSync(deviceId, accessToken) {
-  const MQTT_URL = "wss://://amazonaws.com"; 
+  const MQTT_URL = "wss://aqrphjqbp3u2z-ats.iot.eu-west-2.amazonaws.com";
   const clientIdentifier = `DASH_${deviceId}_${Math.floor(Math.random() * 1000)}`;
 
   const client = mqtt.connect(MQTT_URL, {
@@ -28,13 +28,13 @@ function startPlayerLiveSync(deviceId, accessToken) {
     port: 443,
     protocol: "wss",
     username: `${deviceId}?x-amz-customauthorizer-name=PublicJWTAuthorizer`,
-    password: accessToken,
+    password: accessToken, // Access token validates identity without client secrets
     clientId: clientIdentifier,
     ALPNProtocols: ["x-amzn-mqtt-ca"]
   });
 
   client.on('connect', () => {
-    console.log(`📡 Linked live to hardware device: ${deviceId}`);
+    console.log(`📡 Linked live to hardware device via MQTT broker: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
@@ -67,7 +67,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
         }
       }
     } catch (err) {
-      console.error("Live packet tracking error:", err);
+      console.error("Live packet parsing matrix exception:", err);
     }
   });
 }
@@ -78,7 +78,7 @@ function sendPixelIconToPlayer(mqttClient, deviceId, iconName) {
   }));
 }
 
-// ROUTE 1: Dev Studio App Intake
+// ENDPOINT 1: App Upload Intake Route
 app.post('/api/apps/upload', async (req, res) => {
   try {
     const { appName, iconIdentifier, jsonLogic } = req.body;
@@ -92,7 +92,7 @@ app.post('/api/apps/upload', async (req, res) => {
   }
 });
 
-// ROUTE 2: Dynamic Live Audio Engine
+// ENDPOINT 2: Live Over-the-Air Player Audio Router
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   const { playerId } = req.params;
   try {
@@ -110,11 +110,11 @@ app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
     }
     res.redirect('https://yourstorage.com');
   } catch (err) {
-    res.status(500).send("Audio engine failure");
+    res.status(500).send("Audio engine malfunction routing profiles.");
   }
 });
 
-// ROUTE 3: OAuth Handshake (Uses code_verifier and requires zero client secrets)
+// ENDPOINT 3: Secure PKCE OAuth Handshake Node
 app.post('/api/yoto/callback', async (req, res) => {
   const { authCode, codeVerifier } = req.body;
   try {
@@ -126,23 +126,23 @@ app.post('/api/yoto/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: process.env.YOTO_CLIENT_ID,
+        client_id: process.env.YOTO_CLIENT_ID, // Matches developer token passport identity
         code: authCode,
-        code_verifier: codeVerifier, // Key payload parameter replacing client_secret
+        code_verifier: codeVerifier, // Secure dynamic authorization verification string replaces secrets
         redirect_uri: computedRedirectUri
       })
     });
 
     const tokens = await tokenResponse.json();
-    if (!tokenResponse.ok) throw new Error(tokens.error_description || 'OAuth swap failed.');
+    if (!tokenResponse.ok) throw new Error(tokens.error_description || 'OAuth verification sequence failed.');
 
     const playerResponse = await fetch('https://yoto.dev', {
       headers: { 'Authorization': `Bearer ${tokens.access_token}` }
     });
     const playerData = await playerResponse.json();
-    const targetPlayerId = playerData.players?.[0]?.id; // Safely get first parent device
+    const targetPlayerId = playerData.players?.[0]?.id; // Connects first home device instance array
 
-    if (!targetPlayerId) return res.status(400).json({ error: "No player found on account." });
+    if (!targetPlayerId) return res.status(400).json({ error: "No active player linked to this profile." });
 
     await pool.query(`
       INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) 
@@ -158,4 +158,4 @@ app.post('/api/yoto/callback', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Engine listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Architecture Engine deployed online via port ${PORT}`));
