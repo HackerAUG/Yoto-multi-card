@@ -3,191 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yoto App Store & Developer Studio</title>
+    <title>Yoto OS Control Center & Compiler Studio</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #f4f6f8; color: #333; }
-        .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1 { color: #ff6b35; text-align: center; }
-        h3 { margin-top: 0; color: #222; }
-        button { background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 10px; }
+        body { font-family: system-ui, sans-serif; max-width: 650px; margin: 0 auto; padding: 30px 15px; background: #f0f4f8; color: #2d3748; }
+        .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+        h1 { color: #ff6b35; text-align: center; margin-bottom: 5px; }
+        h3 { margin-top: 0; color: #1a202c; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; }
+        button { background: #ff6b35; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; transition: background 0.2s; }
         button:hover { background: #e55a2b; }
-        input, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        label { font-size: 12px; font-weight: bold; color: #666; display: block; margin-bottom: 5px; }
-        .submit-btn { background: #4caf50; }
-        .submit-btn:hover { background: #43a047; }
-        #connectionStatus { font-weight: bold; text-align: center; margin-top: 15px; }
+        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        label { font-size: 12px; font-weight: bold; color: #4a5568; display: block; margin-bottom: 4px; }
+        .compile-btn { background: #319795; }
+        .compile-btn:hover { background: #2c7a7b; }
+        #status { font-weight: bold; text-align: center; padding: 10px; border-radius: 6px; display: none; }
     </style>
 </head>
 <body>
 
-    <h1>🦊 Yoto App Hub</h1>
-    <p style="text-align: center; color: #666; margin-bottom: 30px;">Manage and build dynamic over-the-air software profiles for physical kids players.</p>
+    <h1>🦊 Yoto Operating System Hub</h1>
+    <p style="text-align: center; color: #718096; margin-bottom: 30px;">Deploy software bundles and register device interfaces directly over-the-air.</p>
 
-    <!-- Block 1: Parent Link Integration -->
     <div class="card">
-        <h3>📱 1. Yoto Player Integration</h3>
-        <p style="color: #555; font-size: 14px;">Connect your master developer household account to register child hardware IDs.</p>
-        <button id="connectYotoBtn">🔌 Link my Yoto Player</button>
-        <p id="connectionStatus"></p>
+        <h3>📱 1. Core Hardware Registration Link</h3>
+        <p style="font-size: 14px; color: #4a5568;">Synchronize your master hardware account with the OS cloud virtualization router.</p>
+        <button id="linkBtn">🔌 Connect Physical Yoto Unit</button>
+        <div id="status" style="margin-top:15px;"></div>
     </div>
 
-    <!-- Block 2: App Submission Form -->
     <div class="card">
-        <h3>🚀 2. Developer Studio</h3>
-        <p style="color: #555; font-size: 14px;">Publish automated code state modules directly into the cloud storage directory.</p>
-        <form id="appUploadForm">
-            <input type="text" id="appName" placeholder="Application Name (e.g., Treasure Hunt)" required>
-            <input type="text" id="iconIdentifier" placeholder="Pixel Screen Icon ID (e.g., yoto:rocket)" required>
+        <h3>🛠️ 2. Custom `.yexe` Binary Compiler Studio</h3>
+        <p style="font-size: 14px; color: #4a5568;">Pack code profiles down into an executable format for the player execution container.</p>
+        
+        <form id="compilerForm">
+            <label>Executable Name</label>
+            <input type="text" id="appName" placeholder="e.g., Mystic Cavern Quest" required>
             
-            <label>1. Starting Greeting:</label>
-            <textarea id="welcomePrompt" placeholder="Welcome to the treasure hunt! Turn the dial..." rows="3" required></textarea>
+            <label>Pixel Art Display Matrix (System ID)</label>
+            <input type="text" id="iconId" placeholder="e.g., yoto:rocket" required>
 
-            <label>2. Winning Response (If Option 2 Selected):</label>
-            <textarea id="winPrompt" placeholder="You opened the glowing chest and found gold! You win!" rows="2" required></textarea>
+            <hr style="border:1px solid #edf2f7; margin:15px 0;">
+            
+            <h4>Execution Tree (Scene 1: Entry Point)</h4>
+            <label>Audio Text Payload (Instruction Prompt)</label>
+            <textarea id="promptStart" rows="3" required>Welcome to the cavern. Turn the dial right to choose path 0, left for path 1. Click right dial to enter.</textarea>
 
-            <label>3. Losing Response (If Option 1 Selected):</label>
-            <textarea id="losePrompt" placeholder="Oh no, a monster blocked the tunnel! Press left dial to restart." rows="2" required></textarea>
+            <h4>Execution Tree (Scene 2: Choice Node 0)</h4>
+            <label>Audio Text Payload (Choice 0 Execution outcome)</label>
+            <textarea id="promptWin" rows="2" required>You successfully safely unlocked the glowing gold vault chest! Press Left Button to return home.</textarea>
 
-            <button type="submit" class="submit-btn">Publish App to Store</button>
+            <h4>Execution Tree (Scene 3: Choice Node 1)</h4>
+            <label>Audio Text Payload (Choice 1 Execution outcome)</label>
+            <textarea id="promptLose" rows="2" required>Oh no! A massive rock slide blocked the exit path. Press Left Button to restart.</textarea>
+
+            <button type="submit" class="compile-btn">Assemble & Publish Bundle (.yexe)</button>
         </form>
     </div>
 
-    <!-- Block 3: Custom Pixel Art Canvas Creator -->
-    <div class="card">
-        <h3>🎨 3. 16x16 Pixel Art Studio</h3>
-        <p style="color: #555; font-size: 14px;">Click the grid squares to design custom graphics for your Yoto screen.</p>
-        <div id="pixelGrid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; max-width: 320px; margin: 0 auto 15px auto; background: #ddd; padding: 4px; border-radius: 8px;"></div>
-        <button type="button" id="clearGridBtn" style="background: #9e9e9e; margin-bottom: 10px;">Clear Canvas</button>
-        <input type="text" id="customIconName" placeholder="Save Icon As (e.g., custom_sword)">
-        <button type="button" id="saveIconBtn" class="submit-btn">Save Pixel Art to Server</button>
-    </div>
-
     <script>
-        const RENDER_BACKEND_URL = "https://yoto-multi-card.onrender.com"; 
+        const BACKEND_URL = window.location.origin;
 
-        const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
-
-        const gridContainer = document.getElementById('pixelGrid');
-        for (let i = 0; i < 256; i++) {
-            const pixel = document.createElement('div');
-            pixel.style.width = '100%';
-            pixel.style.aspectRatio = '1/1';
-            pixel.style.background = '#fff';
-            pixel.style.cursor = 'pointer';
-            pixel.style.borderRadius = '2px';
-            pixel.dataset.active = "false";
-            pixel.addEventListener('click', () => {
-                if (pixel.dataset.active === "false") {
-                    pixel.style.background = '#ff6b35'; 
-                    pixel.dataset.active = "true";
-                } else {
-                    pixel.style.background = '#fff';
-                    pixel.dataset.active = "false";
-                }
-            });
-            gridContainer.appendChild(pixel);
+        // Visual Query Authentication Parameter Engine
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('connected') === 'true') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = "block";
+            statusDiv.style.background = "#e6fffa";
+            statusDiv.style.color = "#234e52";
+            statusDiv.innerText = "✅ Kernel Target Framework successfully attached onto hardware controller!";
         }
 
-        document.getElementById('clearGridBtn').addEventListener('click', () => {
-            document.querySelectorAll('#pixelGrid div').forEach(p => {
-                p.style.background = '#fff';
-                p.dataset.active = "false";
-            });
-        });
+        // Handle authorization redirection setup using random challenge generation
+        document.getElementById('linkBtn').addEventListener('click', async () => {
+            const redirectUri = `${BACKEND_URL}/callback.html`;
+            const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
+            sessionStorage.setItem('yoto_verifier', verifier);
 
-        document.getElementById('saveIconBtn').addEventListener('click', async () => {
-            const iconName = document.getElementById('customIconName').value || 'custom_icon';
-            const pixels = Array.from(document.querySelectorAll('#pixelGrid div')).map(p => p.dataset.active === "true" ? 1 : 0);
-            
-            try {
-                const response = await fetch(`${RENDER_BACKEND_URL}/api/icons/save`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ iconName, pixelMatrix: pixels })
-                });
-                if (response.ok) alert(`🎨 Custom icon "${iconName}" saved over-the-air!`);
-            } catch (err) {
-                alert("❌ Failed to save custom icon to Render backend.");
-            }
-        });
-
-        if (new URLSearchParams(window.location.search).get('connected') === 'true') {
-            document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
-            document.getElementById('connectionStatus').style.color = "#4caf50";
-        }
-
-        function generateRandomString(length) {
-            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-            let text = '';
-            for (let i = 0; i < length; i++) {
-                text += possible.charAt(Math.floor(Math.random() * possible.length));
-            }
-            return text;
-        }
-
-        async function generateCodeChallenge(codeVerifier) {
             const encoder = new TextEncoder();
-            const data = encoder.encode(codeVerifier);
-            const digest = await window.crypto.subtle.digest('SHA-256', data);
-            
-            const uintArray = new Uint8Array(digest);
-            let binaryStr = '';
-            for (let i = 0; i < uintArray.byteLength; i++) {
-                binaryStr += String.fromCharCode(uintArray[i]);
-            }
-            
-            return btoa(binaryStr)
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=+$/, '');
-        }
-
-        document.getElementById('connectYotoBtn').addEventListener('click', async () => {
-            const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
-
-            const verifier = generateRandomString(64);
-            sessionStorage.setItem('yoto_pkce_verifier', verifier);
-            const challenge = await generateCodeChallenge(verifier);
+            const digest = await crypto.subtle.digest('SHA-256', encoder.encode(verifier));
+            const challenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
             try {
-                const targetEndpoint = `${RENDER_BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
-                const response = await fetch(targetEndpoint);
-                
-                if (!response.ok) throw new Error("Backend server error.");
-                
-                const data = await response.json();
+                const res = await fetch(`${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
+                const data = await res.json();
                 window.location.href = data.url;
-            } catch (err) {
-                alert("❌ Cannot reach Render auth gateway proxy.\nEnsure your Render app has finished building and waking up.");
+            } catch {
+                alert("Could not reach compiler authorization pipeline.");
             }
         });
 
-        document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
+        // App Form Packaging into .yexe Format Specification Structure
+        document.getElementById('compilerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const appPayload = {
-                appName: document.getElementById('appName').value,
-                iconIdentifier: document.getElementById('iconIdentifier').value,
-                jsonLogic: {
-                    states: {
-                        welcome: { audio_prompt: document.getElementById('welcomePrompt').value, on_click: "check_guess" },
-                        win: { audio_prompt: document.getElementById('winPrompt').value, on_click: "go_home" },
-                        try_again: { audio_prompt: document.getElementById('losePrompt').value, on_click: "check_guess" }
+
+            const yexeContainer = {
+                format: "yexe-v1",
+                meta: {
+                    title: document.getElementById('appName').value,
+                    compiledAt: new Date().toISOString()
+                },
+                entry: "start",
+                executable: {
+                    start: {
+                        display: document.getElementById('iconId').value,
+                        audio_prompt: document.getElementById('promptStart').value,
+                        type: "decision",
+                        branches: ["choice_zero", "choice_one"]
+                    },
+                    choice_zero: {
+                        display: "yoto:tick",
+                        audio_prompt: document.getElementById('promptWin').value,
+                        type: "end"
+                    },
+                    choice_one: {
+                        display: "yoto:cross",
+                        audio_prompt: document.getElementById('promptLose').value,
+                        type: "end"
                     }
                 }
             };
 
             try {
-                const response = await fetch(`${RENDER_BACKEND_URL}/api/apps/upload`, {
+                const response = await fetch(`${BACKEND_URL}/api/apps/compile`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(appPayload)
+                    body: JSON.stringify({
+                        appName: document.getElementById('appName').value,
+                        iconIdentifier: document.getElementById('iconId').value,
+                        yexeData: yexeContainer
+                    })
                 });
+
                 if (response.ok) {
-                    alert("🎉 Success! App logic template deployed dynamically.");
-                    document.getElementById('appUploadForm').reset();
+                    alert("🎉 .yexe container binary successfully assembled and uploaded to cloud store catalog!");
+                    document.getElementById('compilerForm').reset();
+                } else {
+                    alert("Compilation failed.");
                 }
-            } catch (err) {
-                alert("❌ Cannot reach your Render server backend instance.");
+            } catch {
+                alert("Network communication timeout during compiler assembly.");
             }
         });
     </script>
