@@ -43,7 +43,7 @@
     </div>
 
     <script>
-        // 🔧 PASTE YOUR REAL YOTO CLIENT ID HERE AFTER STEP 4 BELOW:
+        // 🔧 PASTE YOUR REAL YOTO CLIENT ID HERE:
         const YOTO_CLIENT_ID = "YOUR_REAL_YOTO_CLIENT_ID"; 
         
         // 🔧 PASTE YOUR LIVE RENDER SERVER URL HERE:
@@ -51,23 +51,54 @@
 
         const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
-        // 1. Check URL parameters for successful handshake redirect flags
+        // 1. Check if returning with a connection success message
         if (new URLSearchParams(window.location.search).get('connected') === 'true') {
             document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
             document.getElementById('connectionStatus').style.color = "#4caf50";
         }
 
-        // 2. Redirect sequence navigating to Yoto accounts gateway
-        document.getElementById('connectYotoBtn').addEventListener('click', () => {
+        // 2. PKCE Cryptographic Helpers (Generates code proof on-the-fly)
+        function generateRandomString(length) {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let text = '';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        // 3. Initiate Secure Login Flow
+        document.getElementById('connectYotoBtn').addEventListener('click', async () => {
             const redirectUri = `${GITHUB_PAGES_URL}/callback.html`;
             const scopes = "user:content:view user:content:manage offline_access";
-            window.location.href = `https://yoto.dev{YOTO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+
+            // Create and store the verification secret inside browser session cache
+            const verifier = generateRandomString(64);
+            sessionStorage.setItem('yoto_pkce_verifier', verifier);
+            
+            // Build the cryptographically hashed mathematical code challenge
+            const challenge = await generateCodeChallenge(verifier);
+
+            window.location.href = `https://yoto.dev` +
+                `?client_id=${YOTO_CLIENT_ID}` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                `&response_type=code` +
+                `&scope=${encodeURIComponent(scopes)}` +
+                `&code_challenge=${challenge}` +
+                `&code_challenge_method=S256`;
         });
 
-        // 3. Post user data directly to Neon DB through Render backend pipeline
+        // 4. Handle Developer Submissions
         document.getElementById('appUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const appPayload = {
                 appName: document.getElementById('appName').value,
                 iconIdentifier: document.getElementById('iconIdentifier').value,
@@ -87,15 +118,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(appPayload)
                 });
-                
                 if (response.ok) {
-                    alert("🎉 Success! Your code blueprint is uploaded over-the-air into your Neon DB.");
+                    alert("🎉 Success! App blueprint deployed instantly.");
                     document.getElementById('appUploadForm').reset();
-                } else {
-                    alert("⚠️ Server communication failed during upload save script.");
                 }
             } catch (err) {
-                alert("❌ Cannot establish connection to your Render Web Service.");
+                alert("❌ Cannot reach Render server backend.");
             }
         });
     </script>
