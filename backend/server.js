@@ -10,7 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Initialize Neon Client Pool
 const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -18,7 +17,7 @@ const pool = new Pool({
 });
 
 /**
- * 📡 MQTT CORE HARDWARE CONNECTOR LOOP
+ * 📡 MQTT DIRECT SYSTEM LINK LOOP
  */
 function startPlayerLiveSync(deviceId, accessToken) {
   const MQTT_URL = "wss://://amazonaws.com"; 
@@ -35,31 +34,23 @@ function startPlayerLiveSync(deviceId, accessToken) {
   });
 
   client.on('connect', () => {
-    console.log(`📡 Connected live to physical Yoto Hardware: ${deviceId}`);
+    console.log(`📡 Linked live to hardware device: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
   client.on('message', async (topic, message) => {
     try {
       const eventData = JSON.parse(message.toString());
-      console.log(`🕹️ [Hardware Event] Player: ${deviceId} ->`, eventData);
+      const { type, value } = eventData;
 
-      const { type, value } = eventData; 
-
-      // 1. Listen for card insertion events
       if (type === 'card_inserted') {
-        console.log(`🎴 Card ${eventData.cardId} slotted inside player!`);
-        // If it matches launcher profile criteria, signal screen update parameters
         sendPixelIconToPlayer(client, deviceId, "pixel_rocket");
       }
 
-      // 2. Process physical dial turns
       if (type === 'dial_turned') {
         await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [value, deviceId]);
-        console.log(`🧮 Dial position updated to: ${value}`);
       }
 
-      // 3. Handle action button clicking operations
       if (type === 'button_pressed') {
         const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
         const session = sessionRes.rows[0];
@@ -72,42 +63,36 @@ function startPlayerLiveSync(deviceId, accessToken) {
           if (currentState.on_click === 'check_guess') {
             let nextState = (session.current_dial_value === 7) ? 'win' : 'try_again';
             await pool.query('UPDATE active_sessions SET current_state_name = $1 WHERE yoto_player_id = $2', [nextState, deviceId]);
-            console.log(`🔄 State updated dynamically over-the-air: ${nextState}`);
           }
         }
       }
     } catch (err) {
-      console.error("Error evaluating live hardware event packet:", err);
+      console.error("Live packet tracking error:", err);
     }
   });
 }
 
-/**
- * 🎨 FUNCTION: Command a physical player to render custom pixel art graphics
- */
 function sendPixelIconToPlayer(mqttClient, deviceId, iconName) {
-  const targetTopic = `/device/${deviceId}/cmd/display`;
-  const commandPayload = { command: "show_icon", icon: iconName, duration: 5000 };
-  mqttClient.publish(targetTopic, JSON.stringify(commandPayload), { qos: 1 });
+  mqttClient.publish(`/device/${deviceId}/cmd/display`, JSON.stringify({
+    command: "show_icon", icon: iconName, duration: 5000
+  }));
 }
 
-/**
- * ROUTE 1: DEVELOPER STUDIO PORTAL SUBMISSION INTAKE
- */
+// ROUTE 1: Dev Studio App Intake
 app.post('/api/apps/upload', async (req, res) => {
   try {
     const { appName, iconIdentifier, jsonLogic } = req.body;
-    const query = `INSERT INTO developer_apps (app_name, icon_identifier, json_logic) VALUES ($1, $2, $3) RETURNING *;`;
-    const result = await pool.query(query, [appName, iconIdentifier, JSON.stringify(jsonLogic)]);
+    const result = await pool.query(
+      `INSERT INTO developer_apps (app_name, icon_identifier, json_logic) VALUES ($1, $2, $3) RETURNING *;`,
+      [appName, iconIdentifier, JSON.stringify(jsonLogic)]
+    );
     res.status(201).json({ message: "🚀 Upload successful!", app: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * ROUTE 2: DYNAMIC LIVE AUDIO TRACK REDIRECT STREAM
- */
+// ROUTE 2: Dynamic Live Audio Engine
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   const { playerId } = req.params;
   try {
@@ -125,15 +110,13 @@ app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
     }
     res.redirect('https://yourstorage.com');
   } catch (err) {
-    res.status(500).send("Audio engine processing failure");
+    res.status(500).send("Audio engine failure");
   }
 });
 
-/**
- * ROUTE 3: OAUTH TOKEN EXCHANGE HANDSHAKE MANAGER
- */
+// ROUTE 3: OAuth Handshake (Uses code_verifier and requires zero client secrets)
 app.post('/api/yoto/callback', async (req, res) => {
-  const { authCode } = req.body;
+  const { authCode, codeVerifier } = req.body;
   try {
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const computedRedirectUri = `${protocol}://${req.headers.host}/callback.html`;
@@ -143,23 +126,23 @@ app.post('/api/yoto/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        code: authCode,
         client_id: process.env.YOTO_CLIENT_ID,
-        client_secret: process.env.YOTO_CLIENT_SECRET,
+        code: authCode,
+        code_verifier: codeVerifier, // Key payload parameter replacing client_secret
         redirect_uri: computedRedirectUri
       })
     });
 
     const tokens = await tokenResponse.json();
-    if (!tokenResponse.ok) throw new Error(tokens.error_description || 'OAuth Token conversion failed.');
+    if (!tokenResponse.ok) throw new Error(tokens.error_description || 'OAuth swap failed.');
 
     const playerResponse = await fetch('https://yoto.dev', {
       headers: { 'Authorization': `Bearer ${tokens.access_token}` }
     });
     const playerData = await playerResponse.json();
-    const targetPlayerId = playerData.players?.[0]?.id;
+    const targetPlayerId = playerData.players?.[0]?.id; // Safely get first parent device
 
-    if (!targetPlayerId) return res.status(400).json({ error: "No physical Yoto player found." });
+    if (!targetPlayerId) return res.status(400).json({ error: "No player found on account." });
 
     await pool.query(`
       INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) 
@@ -175,4 +158,4 @@ app.post('/api/yoto/callback', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Engine listening on port ${PORT}`));
