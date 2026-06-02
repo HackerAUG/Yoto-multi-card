@@ -25,6 +25,9 @@
     </div>
 
     <script>
+        // HARDCODED DESTINATION FOR HANDSHAKE DELIVERY
+        const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
+
         async function completeAuthentication() {
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
@@ -36,14 +39,14 @@
             }
 
             try {
-                // FIX: Automatically targets your active Render backend host
-                const response = await fetch(`${window.location.origin}/api/yoto/callback`, {
+                // Forwarding tokens directly to the targeted web node service endpoint
+                const response = await fetch(`${TARGET_SERVER}/api/yoto/callback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         authCode: authCode,
                         codeVerifier: savedVerifier,
-                        redirectUri: window.location.origin + window.location.pathname
+                        redirectUri: `${TARGET_SERVER}/callback.html`
                     })
                 });
 
@@ -51,7 +54,6 @@
 
                 if (response.ok && data.success) {
                     localStorage.setItem('yoto_player_id', data.playerId);
-                    // Redirect back to main dashboard with a success flag
                     window.location.href = 'index.html?connected=true';
                 } else {
                     showError(data.error || "The cloud server rejected the credentials.");
