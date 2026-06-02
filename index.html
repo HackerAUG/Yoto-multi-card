@@ -20,18 +20,18 @@
 </head>
 <body>
 
-    <h1>🦊 Yoto App Hub</h1>
+    <h1> Yoto App Hub</h1>
     <p style="text-align: center; color: #666; margin-bottom: 30px;">Manage and build dynamic over-the-air software profiles for physical kids players.</p>
 
     <div class="card">
-        <h3>📱 1. Yoto Player Integration</h3>
+        <h3> 1. Yoto Player Integration</h3>
         <p style="color: #555; font-size: 14px;">Connect your master developer household account to register child hardware IDs.</p>
-        <button id="connectYotoBtn">🔌 Link my Yoto Player</button>
+        <button id="connectYotoBtn"> Link my Yoto Player</button>
         <p id="connectionStatus"></p>
     </div>
 
     <div class="card">
-        <h3>🚀 2. Developer Studio</h3>
+        <h3> 2. Developer Studio</h3>
         <p style="color: #555; font-size: 14px;">Publish automated code state modules directly into the cloud storage directory.</p>
         <form id="appUploadForm">
             <input type="text" id="appName" placeholder="Application Name (e.g., Treasure Hunt)" required>
@@ -51,7 +51,7 @@
     </div>
 
     <div class="card">
-        <h3>🎨 3. 16x16 Pixel Art Studio</h3>
+        <h3> 3. 16x16 Pixel Art Studio</h3>
         <p style="color: #555; font-size: 14px;">Click the grid squares to design custom graphics for your Yoto screen.</p>
         <div id="pixelGrid" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; max-width: 320px; margin: 0 auto 15px auto; background: #ddd; padding: 4px; border-radius: 8px;"></div>
         <button type="button" id="clearGridBtn" style="background: #9e9e9e; margin-bottom: 10px;">Clear Canvas</button>
@@ -60,7 +60,7 @@
     </div>
 
     <script>
-        const RENDER_BACKEND_URL = "https://onrender.com"; 
+        const RENDER_BACKEND_URL = "https://yoto-multi-card.onrender.com"; 
         const GITHUB_PAGES_URL = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
         const gridContainer = document.getElementById('pixelGrid');
@@ -103,12 +103,12 @@
                 });
                 if (response.ok) alert(`0x1F3A8 Custom icon "${iconName}" saved over-the-air!`);
             } catch (err) {
-                alert("❌ Failed to save custom icon to Render backend.");
+                alert(" Failed to save custom icon to Render backend.");
             }
         });
 
         if (new URLSearchParams(window.location.search).get('connected') === 'true') {
-            document.getElementById('connectionStatus').innerText = "✅ Your player is securely synchronized with the App Cloud!";
+            document.getElementById('connectionStatus').innerText = " Your player is securely synchronized with the App Cloud!";
             document.getElementById('connectionStatus').style.color = "#4caf50";
         }
 
@@ -149,7 +149,7 @@
                 const data = await response.json();
                 window.location.href = data.url;
             } catch (err) {
-                alert("❌ Cannot reach Render auth gateway proxy.");
+                alert(" Cannot reach Render auth gateway proxy.");
             }
         });
 
@@ -178,7 +178,7 @@
                     document.getElementById('appUploadForm').reset();
                 }
             } catch (err) {
-                alert("❌ Cannot reach your Render server backend instance.");
+                alert(" Cannot reach your Render server backend instance.");
             }
         });
     </script>
