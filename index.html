@@ -2,146 +2,69 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yoto OS Control Center & Compiler Studio</title>
+    <title>Yoto OS Control Deck</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 650px; margin: 0 auto; padding: 30px 15px; background: #f0f4f8; color: #2d3748; }
-        .card { background: #fff; padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
-        h1 { color: #ff6b35; text-align: center; margin-bottom: 5px; }
-        h3 { margin-top: 0; color: #1a202c; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; }
-        button { background: #ff6b35; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; transition: background 0.2s; }
-        button:hover { background: #e55a2b; }
-        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        label { font-size: 12px; font-weight: bold; color: #4a5568; display: block; margin-bottom: 4px; }
-        .compile-btn { background: #319795; }
-        .compile-btn:hover { background: #2c7a7b; }
-        #status { font-weight: bold; text-align: center; padding: 10px; border-radius: 6px; display: none; }
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #fafafa; }
+        .box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background: #ff6b35; color: white; font-weight: bold; border: none; padding: 12px; width: 100%; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
-
-    <h1>🦊 Yoto Operating System Hub</h1>
-    <p style="text-align: center; color: #718096; margin-bottom: 30px;">Deploy software bundles and register device interfaces directly over-the-air.</p>
-
-    <div class="card">
-        <h3>📱 1. Core Hardware Registration Link</h3>
-        <p style="font-size: 14px; color: #4a5568;">Synchronize your master hardware account with the OS cloud virtualization router.</p>
-        <button id="linkBtn">🔌 Connect Physical Yoto Unit</button>
-        <div id="status" style="margin-top:15px;"></div>
+    <h2>🦊 Yoto .yexe Operating Environment</h2>
+    
+    <div class="box">
+        <h3>Link Account</h3>
+        <button id="authBtn">Connect via Yoto Gateway</button>
     </div>
 
-    <div class="card">
-        <h3>🛠️ 2. Custom `.yexe` Binary Compiler Studio</h3>
-        <p style="font-size: 14px; color: #4a5568;">Pack code profiles down into an executable format for the player execution container.</p>
-        
-        <form id="compilerForm">
-            <label>Executable Name</label>
-            <input type="text" id="appName" placeholder="e.g., Mystic Cavern Quest" required>
-            
-            <label>Pixel Art Display Matrix (System ID)</label>
-            <input type="text" id="iconId" placeholder="e.g., yoto:rocket" required>
-
-            <hr style="border:1px solid #edf2f7; margin:15px 0;">
-            
-            <h4>Execution Tree (Scene 1: Entry Point)</h4>
-            <label>Audio Text Payload (Instruction Prompt)</label>
-            <textarea id="promptStart" rows="3" required>Welcome to the cavern. Turn the dial right to choose path 0, left for path 1. Click right dial to enter.</textarea>
-
-            <h4>Execution Tree (Scene 2: Choice Node 0)</h4>
-            <label>Audio Text Payload (Choice 0 Execution outcome)</label>
-            <textarea id="promptWin" rows="2" required>You successfully safely unlocked the glowing gold vault chest! Press Left Button to return home.</textarea>
-
-            <h4>Execution Tree (Scene 3: Choice Node 1)</h4>
-            <label>Audio Text Payload (Choice 1 Execution outcome)</label>
-            <textarea id="promptLose" rows="2" required>Oh no! A massive rock slide blocked the exit path. Press Left Button to restart.</textarea>
-
-            <button type="submit" class="compile-btn">Assemble & Publish Bundle (.yexe)</button>
+    <div class="box">
+        <h3>Compile & Upload .yexe Package</h3>
+        <form id="buildForm">
+            <input type="text" id="name" placeholder="Application Title" required>
+            <input type="text" id="icon" placeholder="Matrix Icon (e.g. yoto:rocket)" required>
+            <textarea id="sPrompt" placeholder="Initial Scene Audio Description" required></textarea>
+            <textarea id="oZero" placeholder="Path 0 Execution Conclusion Audio Text" required></textarea>
+            <textarea id="oOne" placeholder="Path 1 Execution Conclusion Audio Text" required></textarea>
+            <button type="submit">Compile Binary Stream</button>
         </form>
     </div>
 
     <script>
-        const BACKEND_URL = window.location.origin;
-
-        // Visual Query Authentication Parameter Engine
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('connected') === 'true') {
-            const statusDiv = document.getElementById('status');
-            statusDiv.style.display = "block";
-            statusDiv.style.background = "#e6fffa";
-            statusDiv.style.color = "#234e52";
-            statusDiv.innerText = "✅ Kernel Target Framework successfully attached onto hardware controller!";
-        }
-
-        // Handle authorization redirection setup using random challenge generation
-        document.getElementById('linkBtn').addEventListener('click', async () => {
-            const redirectUri = `${BACKEND_URL}/callback.html`;
+        document.getElementById('authBtn').addEventListener('click', async () => {
             const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('');
-            sessionStorage.setItem('yoto_verifier', verifier);
-
-            const encoder = new TextEncoder();
-            const digest = await crypto.subtle.digest('SHA-256', encoder.encode(verifier));
+            sessionStorage.setItem('yoto_pkce_verifier', verifier);
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
             const challenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-            try {
-                const res = await fetch(`${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
-                const data = await res.json();
-                window.location.href = data.url;
-            } catch {
-                alert("Could not reach compiler authorization pipeline.");
-            }
+            
+            const redirect = `${window.location.origin}/callback.html`;
+            window.location.href = `https://yoto.com/oauth/authorize?client_id=${window.location.hostname}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=user%3Acontent%3Aview%20user%3Acontent%3Amanage%20offline_access&code_challenge=${challenge}&code_challenge_method=S256`;
         });
 
-        // App Form Packaging into .yexe Format Specification Structure
-        document.getElementById('compilerForm').addEventListener('submit', async (e) => {
+        document.getElementById('buildForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const yexeContainer = {
-                format: "yexe-v1",
-                meta: {
-                    title: document.getElementById('appName').value,
-                    compiledAt: new Date().toISOString()
-                },
-                entry: "start",
-                executable: {
-                    start: {
-                        display: document.getElementById('iconId').value,
-                        audio_prompt: document.getElementById('promptStart').value,
-                        type: "decision",
-                        branches: ["choice_zero", "choice_one"]
-                    },
-                    choice_zero: {
-                        display: "yoto:tick",
-                        audio_prompt: document.getElementById('promptWin').value,
-                        type: "end"
-                    },
-                    choice_one: {
-                        display: "yoto:cross",
-                        audio_prompt: document.getElementById('promptLose').value,
-                        type: "end"
+            const payload = {
+                appName: document.getElementById('name').value,
+                iconIdentifier: document.getElementById('icon').value,
+                yexeData: {
+                    format: "yexe-v1",
+                    entry: "start",
+                    executable: {
+                        start: {
+                            display: document.getElementById('icon').value,
+                            audio_prompt: document.getElementById('sPrompt').value,
+                            type: "decision", branches: ["zero", "one"]
+                        },
+                        zero: { display: "yoto:tick", audio_prompt: document.getElementById('oZero').value, type: "end" },
+                        one: { display: "yoto:cross", audio_prompt: document.getElementById('oOne').value, type: "end" }
                     }
                 }
             };
-
-            try {
-                const response = await fetch(`${BACKEND_URL}/api/apps/compile`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        appName: document.getElementById('appName').value,
-                        iconIdentifier: document.getElementById('iconId').value,
-                        yexeData: yexeContainer
-                    })
-                });
-
-                if (response.ok) {
-                    alert("🎉 .yexe container binary successfully assembled and uploaded to cloud store catalog!");
-                    document.getElementById('compilerForm').reset();
-                } else {
-                    alert("Compilation failed.");
-                }
-            } catch {
-                alert("Network communication timeout during compiler assembly.");
-            }
+            const res = await fetch('/api/apps/compile', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) alert("Published successfully!");
         });
     </script>
 </body>
