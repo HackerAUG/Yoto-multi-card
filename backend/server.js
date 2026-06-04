@@ -53,8 +53,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
     console.log(`📡 Custom OS Kernel attached to physical player: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
     
-    // CUSTOM BOOT LOGO OVERRIDE: Flash the rocket on the hardware screen the moment the kernel links
-    console.log("🚀 Flashing custom system boot logo matrix...");
+    // Send the custom system boot logo matrix command immediately upon connection
     pushDisplayCommand(client, deviceId, "yoto:rocket");
   });
 
@@ -152,7 +151,6 @@ function startPlayerLiveSync(deviceId, accessToken) {
             const targetNodeName = node.branches[idx];
             const nextNode = app.executable_data.executable[targetNodeName];
 
-            // PERSISTENT SAVE DATA INTERACTION LAYER
             if (nextNode && nextNode.save_trigger) {
               await pool.query(
                 `INSERT INTO app_save_data (yoto_player_id, app_id, save_state) 
@@ -204,85 +202,60 @@ app.post('/api/yoto/callback', async (req, res) => {
     const playerData = await playerResponse.json();
     let targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id || "MYO-TRACK-NODE";
     
+    // Initialize tracking state inside our PostgreSQL schema
     await pool.query(
       `INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value, boot_count) 
        VALUES ($1, 'home', 0, 1) 
        ON CONFLICT (yoto_player_id) DO UPDATE SET boot_count = active_sessions.boot_count + 1`, 
       [targetPlayerId]
     );
-    
-    // CLEAN CREATION SCHEMA STRUCTURE (Fixed validation bug by dropping display validation blockers)
-    const playlistPayload = {
-      title: "Yoto Multi-Card OS Launcher",
-      metadata: {
-        description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
-      },
-      content: {
-        playbackType: "linear", 
-        config: { 
-          resumeTimeout: 0, 
-          autoadvance: "none" 
-        },
-        chapters: [
-          {
-            key: "os_boot_sequence",
-            title: "System Boot Matrix",
-            overlayLabel: "BOOT",
-            tracks: [
-              {
-                title: "System Main Kernel Execution Audio",
-                key: "sys_boot_core",
-                format: "mp3",
-                type: "stream", 
-                uid: `track_uid_${targetPlayerId}`,
-                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
-                duration: 1800, 
-                fileSize: 1048576,
-                channels: "stereo",
-                overlayLabel: "SYSTEM"
-                // REMOVED: display blocks that cause silent 400 Bad Request registration rejections
-              }
-            ]
-          }
-        ]
-      }
-    };
 
-    const playlistCreateResponse = await fetch('https://api.yotoplay.com/content', {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(playlistPayload)
-    });
-
-    const playlistData = await playlistCreateResponse.json();
-    console.log("✅ Interactive Launcher successfully injected:", playlistData);
-
+    // Bypassed the locked AWS endpoint completely. Spinning up the MQTT engine sync loop directly.
     if (targetPlayerId !== "MYO-TRACK-NODE") {
       startPlayerLiveSync(targetPlayerId, tokens.access_token);
     }
     
-    res.json({ success: true, playerId: targetPlayerId, playlistCreated: true });
+    res.json({ success: true, playerId: targetPlayerId, bypassMethod: "emulated" });
   } catch (error) { 
     res.status(500).json({ error: error.message }); 
   }
 });
 
+/**
+ * PLAYLIST EMULATION NODE: Serves the fully formatted playlist schema.
+ */
 app.get('/api/yoto/playlist/:playerId', async (req, res) => {
   try {
+    const pid = req.params.playerId;
     res.json({
-      playlist_name: "Yoto Multi-Card Custom OS Engine",
-      description: "Cloud-rendered execution layer for dynamic application modules.",
-      banner_icon: "yoto:home",
-      tracks: [
-        {
-          title: "System Main Kernel Execution Audio Track",
-          url: `https://yoto-multi-card.onrender.com/yoto/launcher/${req.params.playerId}/track.mp3`,
-          type: "audio/mp3"
-        }
-      ]
+      title: "Yoto Multi-Card OS Launcher",
+      metadata: {
+        description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
+      },
+      content: {
+        playbackType: "linear",
+        config: { resumeTimeout: 0, autoadvance: "none" },
+        chapters: [
+          {
+            key: "os_boot_sequence",
+            title: "System Boot Matrix",
+            tracks: [
+              {
+                title: "System Main Kernel Audio",
+                key: `sys_boot_${pid}`,
+                format: "mp3",
+                type: "stream",
+                uid: `track_uid_${pid}`,
+                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${pid}/track.mp3`,
+                duration: 1800,
+                fileSize: 1048576,
+                channels: "stereo",
+                overlayLabel: "SYSTEM"
+              }
+            ]
+          }
+        ]
+      }
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -299,7 +272,7 @@ app.post('/api/apps/compile', async (req, res) => {
 });
 
 /**
- * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR (With Save States & Settings Configuration Processing)
+ * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR
  */
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   try {
