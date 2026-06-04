@@ -188,7 +188,7 @@ app.post('/api/yoto/callback', async (req, res) => {
     const { authCode, codeVerifier, redirectUri } = req.body;
     
     // FIXED: Swapped to yoto.dev for server token exchange
-    const tokenRes = await fetch('https://yoto.dev/oauth/token', {
+    const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
