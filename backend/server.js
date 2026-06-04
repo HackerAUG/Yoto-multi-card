@@ -180,7 +180,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
     const { redirect_uri, challenge } = req.query;
     const clientId = process.env.YOTO_CLIENT_ID;
     const securityState = Math.random().toString(36).substring(2, 15);
-    const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
+    const yotoAuthUrl = `https://login.yotoplay.com/authorize?audience=https%3A%2F%2Fapi.yotoplay.com&client_id=BA8IaVyfDSHBPMEM4eXCep9VVHjHwLAy&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile+offline_access+family%3Alibrary%3Aview+user%3Acontent%3Amanage&state=lkf8n83n5g&code_challenge=${challenge}&code_challenge_method=S256` + new URLSearchParams({
       audience: 'https://api.yotoplay.com', client_id: clientId, redirect_uri: redirect_uri,
       response_type: 'code', scope: 'openid profile offline_access family:library:view user:content:manage',
       state: securityState, code_challenge: challenge, code_challenge_method: 'S256'
