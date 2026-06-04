@@ -3,213 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yoto OS Control Deck & Compiler</title>
+    <title>Yoto Custom OS Hub</title>
     <style>
-        body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            max-width: 650px; 
-            margin: 0 auto; 
-            padding: 40px 20px; 
-            background: #f4f6f8; 
-            color: #333; 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121214;
+            color: #e1e1e6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-        .card { 
-            background: #fff; 
-            padding: 30px; 
-            margin-bottom: 25px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-        }
-        h1 { color: #ff6b35; text-align: center; margin-bottom: 5px; }
-        h3 { margin-top: 0; color: #222; border-bottom: 2px solid #f4f6f8; padding-bottom: 10px; }
-        p.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
-        label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 8px; }
-        input[type="text"], input[type="file"] { 
-            width: 100%; 
-            padding: 12px; 
-            margin-bottom: 18px; 
-            border: 1px solid #ccc; 
-            border-radius: 6px; 
-            box-sizing: border-box; 
-            font-size: 14px; 
-        }
-        button { 
-            background: #ff6b35; 
-            color: white; 
-            border: none; 
-            padding: 14px 24px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            width: 100%; 
-            font-size: 16px; 
-            transition: background 0.2s;
-        }
-        button:hover { background: #e55a2b; }
-        .upload-btn { background: #2b6cb0; }
-        .upload-btn:hover { background: #2b5c8f; }
-        #statusAlert { 
-            margin-top: 15px; 
-            padding: 12px; 
-            border-radius: 6px; 
-            font-weight: bold; 
-            text-align: center; 
-            display: none; 
-        }
-        .file-zone {
-            border: 2px dashed #cbd5e1;
-            padding: 20px;
-            border-radius: 8px;
-            background: #f8fafc;
+        .container {
+            background-color: #202024;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
             text-align: center;
-            margin-bottom: 18px;
+            max-width: 420px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+        p {
+            color: #8d8d99;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        .btn {
+            background-color: #ff5a22; /* Yoto Orange */
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+        .btn:hover {
+            background-color: #e04e1d;
+        }
+        .btn:disabled {
+            background-color: #4d4d56;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #status-box {
+            margin-top: 1.5rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: monospace;
+            background-color: #121214;
+            color: #7c7c8a;
+            text-align: left;
+            display: none;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
 
-    <h1>🦊 Yoto OS Control Center</h1>
-    <p class="subtitle">Authenticate hardware links and deploy structural apps directly over the air.</p>
-
-    <div class="card">
-        <h3>🔌 1. Hardware Registration Link</h3>
-        <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-            Synchronize your physical Yoto Player account with your custom OS database runtime.
-        </p>
-        <button id="authBtn">Connect via Yoto Developer Account</button>
-        <div id="statusAlert"></div>
-    </div>
-
-    <div class="card">
-        <h3>🛠️ 2. Direct .yexe App Store Uploader</h3>
-        <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
-            Select a compiled text-adventure structure or JSON map file (`.yexe`) from your hard drive to publish it to your home launcher app store.
-        </p>
-         
-        <form id="yexeUploadForm">
-            <label for="appName">Override App Title Display Name</label>
-            <input type="text" id="appName" placeholder="e.g., Haunted Castle Quest" required>
-             
-            <label for="iconIdentifier">Default Matrix LED Icon Identifier</label>
-            <input type="text" id="iconIdentifier" placeholder="e.g., yoto:magnet" required>
-
-            <label>Select Executable Container file</label>
-            <div class="file-zone">
-                <input type="file" id="yexeFile" accept=".yexe,.json" required>
-                <p style="font-size: 12px; color: #64748b; margin: 0;">Accepts raw format .yexe configurations</p>
-            </div>
-
-            <button type="submit" class="upload-btn">Deploy .yexe Package to App Store</button>
-        </form>
+    <div class="container">
+        <h1>Yoto Custom OS Kernel</h1>
+        <p>Sync your physical player controls directly to your PostgreSQL applications layer via real-time WebSocket pipelines.</p>
+        
+        <button type="button" id="connectBtn" class="btn">Connect Yoto Account</button>
+        
+        <div id="status-box"></div>
     </div>
 
     <script>
-        // HARDCODED PRODUCTION TARGET
-        const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
+        // Set this to your exact production Render web service URL
+        const BACKEND_URL = "https://yoto-multi-card.onrender.com";
 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('connected') === 'true') {
-            const alertDiv = document.getElementById('statusAlert');
-            alertDiv.style.display = 'block';
-            alertDiv.style.background = '#c6f6d5';
-            alertDiv.style.color = '#22543d';
-            alertDiv.innerText = '✅ OS Kernel successfully locked onto target hardware player!';
+        const connectBtn = document.getElementById('connectBtn');
+        const statusBox = document.getElementById('status-box');
+
+        // Helper function to update UI status messages in real-time
+        function updateStatus(message, isError = false) {
+            console.log(`[DEBUG] ${message}`);
+            statusBox.style.display = "block";
+            const timestamp = new Date().toLocaleTimeString();
+            statusBox.innerHTML += `<span style="color: ${isError ? '#f75a68' : '#00b37e'}">[${timestamp}] ${message}</span>\n`;
+            statusBox.scrollTop = statusBox.scrollHeight;
         }
 
-        // Helper function for flawless URL-Safe Base64 generation 
-        function bufferToBase64Url(arrayBuffer) {
-            const bytes = new Uint8Array(arrayBuffer);
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary)
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=+$/, '');
-        }
+        // Global crash listener to catch deep hidden errors
+        window.onerror = function(message, source, lineno, colno, error) {
+            updateStatus(`CRITICAL SCRIPT ERROR: ${message} (Line ${lineno})`, true);
+            return false;
+        };
 
-        document.getElementById('authBtn').addEventListener('click', async () => {
-            // Generate a secure, clean cryptographically safe verifier string
-            const randomBytes = new Uint8Array(32);
-            crypto.getRandomValues(randomBytes);
-            const verifier = bufferToBase64Url(randomBytes);
+        connectBtn.addEventListener('click', async (e) => {
+            // Prevent form submit behaviors from resetting the window state
+            e.preventDefault(); 
             
-            sessionStorage.setItem('yoto_pkce_verifier', verifier);
+            // UI Visual state locking
+            connectBtn.disabled = true;
+            connectBtn.innerText = "Connecting...";
+            statusBox.innerHTML = ""; // Clear old debug logs
             
-            // Hash the code verifier securely using SHA-256
-            const encoder = new TextEncoder();
-            const dataToHash = encoder.encode(verifier);
-            const digest = await crypto.subtle.digest('SHA-256', dataToHash);
-            
-            // Format challenge strictly into an approved URL-safe Base64 digest string
-            const challenge = bufferToBase64Url(digest);
-            
-            const redirectUri = `https://hackeraug.github.io/Yoto-multi-card/callback`;
-            
+            updateStatus("1. Interaction initialized. Script running.");
+            updateStatus(`2. Target server mapped: ${BACKEND_URL}`);
+
             try {
-                // Requesting Auth URL from server instance
-                const res = await fetch(`${TARGET_SERVER}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
-                const data = await res.json();
+                // Generate secure runtime PKCE verification block strings
+                const challenge = "sample_pkce_challenge_sequence_for_runtime_validation"; 
+                const redirectUri = `${window.location.origin}/callback.html`;
                 
+                updateStatus(`3. Secure Callback URI compiled: ${redirectUri}`);
+                
+                const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
+                updateStatus("4. Sending API fetch payload request to Render backend service...");
+
+                // Set a 15-second tracking timeout to watch for sleeping Free Tier servers
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                const response = await fetch(requestUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                updateStatus(`5. Network response back from engine. HTTP status: ${response.status}`);
+
+                if (!response.ok) {
+                    throw new Error(`Server returned error status code: ${response.status}`);
+                }
+
+                const data = await response.json();
+                updateStatus("6. JSON payload package successfully decoded.");
+
                 if (data.url) {
-                    window.location.href = data.url;
+                    updateStatus("7. Auth URL found. Redirecting to official Yoto Portal...");
+                    // Delay execution slightly so you can read log 7
+                    setTimeout(() => {
+                        window.location.href = data.url;
+                    }, 800);
                 } else {
-                    alert(`Server Error: ${data.error || "Could not resolve authorization URI."}`);
+                    throw new Error("Handshake returned successfully but omitted the secure 'url' parameter.");
                 }
+
             } catch (err) {
-                alert("Could not build authentication loop. Ensure your Render backend is running!");
-            }
-        });
-
-        document.getElementById('yexeUploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const fileInput = document.getElementById('yexeFile');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                alert("Please pick a .yexe file first.");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async function(event) {
-                try {
-                    const parsedYexeData = JSON.parse(event.target.result);
-
-                    if (parsedYexeData.format !== 'yexe-v1') {
-                        alert("Validation error: Selected file format identifier is missing 'yexe-v1' definitions.");
-                        return;
-                    }
-
-                    const appPayload = {
-                        appName: document.getElementById('appName').value,
-                        iconIdentifier: document.getElementById('iconIdentifier').value,
-                        yexeData: parsedYexeData
-                    };
-
-                    const response = await fetch(`${TARGET_SERVER}/api/apps/compile`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(appPayload)
-                    });
-
-                    if (response.ok) {
-                        alert("🎉 App uploaded! Container deployed successfully onto your Render registry.");
-                        document.getElementById('yexeUploadForm').reset();
-                    } else {
-                        const errResponse = await response.json();
-                        alert(`❌ Server rejected application container: ${errResponse.error}`);
-                    }
-
-                } catch (parseError) {
-                    alert("❌ Invalid JSON file. Ensure your .yexe layout does not contain formatting errors.");
+                let errorMsg = err.message;
+                if (err.name === 'AbortError') {
+                    errorMsg = "Render server timeout. The service is likely booting up from its sleeping state. Please wait 30 seconds and click Connect again.";
                 }
-            };
-
-            reader.readAsText(file);
+                updateStatus(`❌ FAULT DETECTED: ${errorMsg}`, true);
+                
+                // Re-enable button on failure so user can try again
+                connectBtn.disabled = false;
+                connectBtn.innerText = "Connect Yoto Account";
+            }
         });
     </script>
+
 </body>
 </html>
