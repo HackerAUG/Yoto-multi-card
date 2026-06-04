@@ -247,10 +247,10 @@
                 localStorage.setItem("pkce_verifier", verifier);
                 
                 // FIXED: Direct exact matching folder string mapping path
-                const redirectUri = "https://hackeraug.github.io/Yoto-multi-card/callback.html";
+                const redirecturi = "https://hackeraug.github.io/Yoto-multi-card/callback.html";
                 printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
-                const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
+                const requesturl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
                 printLog("3. Requesting secure URL allocation from Render instance...");
 
                 const response = await fetch(requestUrl);
