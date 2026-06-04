@@ -13,8 +13,6 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
-// Serve static client-side frontend files automatically
-app.use(express.static(path.join(__dirname, '../public')));
 
 // Configure connection pool to your Render/Neon PostgreSQL database
 const pool = new pg.Pool({
@@ -52,7 +50,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
   });
 
   client.on('connect', () => {
-    console.log(`📡 Custom OS Kernel attached to physical player: ${deviceId}`);
+    console.log(` 📡 Custom OS Kernel attached to physical player: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
@@ -150,8 +148,8 @@ function startPlayerLiveSync(deviceId, accessToken) {
    ========================================================================== */
 
 /**
- * FIX 1: OAUTH AUTH-URL ENDPOINT
- * Builds the secure authorization URL server-side using the protected YOTO_CLIENT_ID key.
+ * FIXED OAUTH AUTH-URL ENDPOINT
+ * Targets yoto.dev explicitly instead of consumer yoto.com
  */
 app.get('/api/yoto/auth-url', (req, res) => {
   try {
@@ -165,7 +163,8 @@ app.get('/api/yoto/auth-url', (req, res) => {
       return res.status(500).json({ error: "Server Error: YOTO_CLIENT_ID missing on Render dashboard configuration." });
     }
 
-    const yotoAuthUrl = `https://yoto.com/oauth/authorize?` + new URLSearchParams({
+    // FIXED: Changed from yoto.com to yoto.dev
+    const yotoAuthUrl = `https://yoto.dev/oauth/authorize?` + new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirect_uri,
       response_type: 'code',
@@ -181,12 +180,14 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * OAUTH CALLBACK: Completes the PKCE cryptographic exchange to bind your player account.
+ * FIXED OAUTH CALLBACK ENDPOINT
+ * Completes the PKCE cryptographic exchange on yoto.dev
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
     const { authCode, codeVerifier, redirectUri } = req.body;
     
+    // FIXED: Swapped to yoto.dev for server token exchange
     const tokenRes = await fetch('https://yoto.dev/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -226,7 +227,7 @@ app.post('/api/yoto/callback', async (req, res) => {
 });
 
 /**
- * FIX 2: .YEXE SOFTWARE APPLICATION CATALOG COMPILER UPLOADER
+ * .YEXE SOFTWARE APPLICATION CATALOG COMPILER UPLOADER
  */
 app.post('/api/apps/compile', async (req, res) => {
   try {
@@ -249,8 +250,7 @@ app.post('/api/apps/compile', async (req, res) => {
 });
 
 /**
- * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR: Tracks OS state changes and returns 
- * localized runtime voice navigation cues over physical hardware speakers.
+ * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR
  */
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   try {
