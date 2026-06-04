@@ -50,7 +50,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
   });
 
   client.on('connect', () => {
-    console.log(` 📡 Custom OS Kernel attached to physical player: ${deviceId}`);
+    console.log(`📡 Custom OS Kernel attached to physical player: ${deviceId}`);
     client.subscribe(`/device/${deviceId}/data/events`);
   });
 
@@ -148,8 +148,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
    ========================================================================== */
 
 /**
- * FIXED OAUTH AUTH-URL ENDPOINT
- * Targets yoto.dev explicitly instead of consumer yoto.com
+ * FIXED AUTH-URL ENDPOINT (Clears 400 Bad Request Blocks)
  */
 app.get('/api/yoto/auth-url', (req, res) => {
   try {
@@ -160,15 +159,19 @@ app.get('/api/yoto/auth-url', (req, res) => {
 
     const clientId = process.env.YOTO_CLIENT_ID;
     if (!clientId) {
-      return res.status(500).json({ error: "Server Error: YOTO_CLIENT_ID missing on Render dashboard configuration." });
+      return res.status(500).json({ error: "Server Error: YOTO_CLIENT_ID missing on Render configuration." });
     }
 
-    // FIXED: Changed from yoto.com to yoto.dev
+    const securityState = Math.random().toString(36).substring(2, 15);
+
+    // FIXED: Formatted strictly according to Yoto Identity standards
     const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
+      audience: 'https://api.yotoplay.com',
       client_id: clientId,
       redirect_uri: redirect_uri,
       response_type: 'code',
-      scope: 'user:content:view user:content:manage offline_access',
+      scope: 'openid profile offline_access family:library:view',
+      state: securityState,
       code_challenge: challenge,
       code_challenge_method: 'S256'
     }).toString();
@@ -181,13 +184,12 @@ app.get('/api/yoto/auth-url', (req, res) => {
 
 /**
  * FIXED OAUTH CALLBACK ENDPOINT
- * Completes the PKCE cryptographic exchange on yoto.dev
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
     const { authCode, codeVerifier, redirectUri } = req.body;
     
-    // FIXED: Swapped to yoto.dev for server token exchange
+    // FIXED: Exchanging tokens via the official Auth0 Identity Provider pipeline
     const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -201,10 +203,10 @@ app.post('/api/yoto/callback', async (req, res) => {
     });
     
     const tokens = await tokenRes.json();
-    if (!tokens.access_token) return res.status(400).json({ error: "Token negotiation rejected by Yoto." });
+    if (!tokens.access_token) return res.status(400).json({ error: "Token negotiation rejected by Yoto server." });
 
     // Fetch the player ID profile linked with this authorization token
-    const playerResponse = await fetch('https://yoto.dev/api/v1/players', {
+    const playerResponse = await fetch('https://api.yotoplay.com/api/v1/players', {
       headers: { 'Authorization': `Bearer ${tokens.access_token}` }
     });
     const playerData = await playerResponse.json();
