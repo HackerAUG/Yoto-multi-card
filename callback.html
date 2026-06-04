@@ -2,74 +2,80 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connecting your Yoto...</title>
+    <title>Yoto OS Authentication Callback</title>
     <style>
-        body { font-family: system-ui, sans-serif; text-align: center; padding: 50px; background: #f9f9f9; color: #4a5568; }
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f6f8; color: #333; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ff6b35; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error { color: #d9381e; display: none; background: #fff5f5; padding: 20px; border-radius: 8px; border: 1px solid #fed7d7; max-width: 500px; margin: 20px auto; }
+        .error-card { background: white; padding: 30px; max-width: 500px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; }
+        .btn { display: inline-block; background: #ff6b35; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="status-container">
-        <h2>🔒 Securing your connection...</h2>
-        <p>Linking your Yoto Player to the custom OS framework.</p>
+
+    <div id="loadingZone">
+        <h2>🦊 Syncing with Yoto Cloud Identity Hub...</h2>
+        <p>Please wait while we finalize the hardware bridge link.</p>
         <div class="loader"></div>
     </div>
 
-    <div id="error-message" class="error">
-        <h2>⚠️ Connection Failed</h2>
-        <p id="error-text">Could not communicate with the server.</p>
-        <a href="index.html" style="color: #ff6b35; font-weight: bold; text-decoration: none;">Return to Home</a>
+    <div id="errorZone" class="error-card">
+        <h2 style="color: #e53e3e;">⚠️ Connection Failed</h2>
+        <p id="errorMsg" style="font-weight: bold; color: #4a5568;"></p>
+        <a href="index.html" class="btn">Return to Home Deck</a>
     </div>
 
     <script>
-        // HARDCODED DESTINATION FOR HANDSHAKE DELIVERY
+        // CONFIGURATION ROUTING ARCHITECTURE
         const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
+        const EXACT_REDIRECT_URI = "https://hackeraug.github.io/yoto-multi-card/callback.html";
 
-        async function completeAuthentication() {
+        async function processTokenExchange() {
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
-            const savedVerifier = sessionStorage.getItem('yoto_pkce_verifier');
 
             if (!authCode) {
-                showError("No authorization credentials returned from Yoto gateway.");
+                showError("No authorization code returned from the security provider screen.");
                 return;
             }
 
+            const codeVerifier = sessionStorage.getItem('yoto_pkce_verifier');
+
             try {
-                // Forwarding tokens directly to the targeted web node service endpoint
+                // Submit payload off GitHub Pages to your live Render backend process router
                 const response = await fetch(`${TARGET_SERVER}/api/yoto/callback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         authCode: authCode,
-                        codeVerifier: savedVerifier,
-                        redirectUri: `hackeraug.github.io/Yoto-multi-card/callback.html`
+                        codeVerifier: codeVerifier,
+                        redirectUri: EXACT_REDIRECT_URI // Hardcoded link ensures null values can never happen
                     })
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    localStorage.setItem('yoto_player_id', data.playerId);
-                    window.location.href = 'index.html?connected=true';
+                    // Send user back to main dashboard panel with active sync status parameter flag
+                    window.location.href = "index.html?connected=true";
                 } else {
-                    showError(data.error || "The cloud server rejected the credentials.");
+                    showError(data.error || "Token exchange negotiation handshake failed.");
                 }
-            } catch (error) {
-                showError("Failed to establish secure contact with your backend engine.");
+
+            } catch (err) {
+                showError("Could not reach your Render server. Check that your backend application is up and running.");
             }
         }
 
-        function showError(message) {
-            document.getElementById('status-container').style.display = 'none';
-            document.getElementById('error-message').style.display = 'block';
-            document.getElementById('error-text').innerText = message;
+        function showError(msg) {
+            document.getElementById('loadingZone').style.display = 'none';
+            const errorZone = document.getElementById('errorZone');
+            errorZone.style.display = 'block';
+            document.getElementById('errorMsg').innerText = msg;
         }
 
-        completeAuthentication();
+        // Initialize immediately on document rendering frames
+        processTokenExchange();
     </script>
 </body>
 </html>
