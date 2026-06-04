@@ -259,7 +259,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       ]
     };
 
-    const playlistCreateResponse = await fetch('https://api.yotoplay.com/myo/playlists', {
+    const playlistCreateResponse = await fetch('https://api.yotoplay.com/content', {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${tokens.access_token}`,
