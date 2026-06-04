@@ -213,7 +213,6 @@
             statusBox.scrollTop = statusBox.scrollHeight;
         }
 
-        /* WEB CRYPTO API: AUTOMATED PKCE COMPLIANT STRING LAYER */
         function generateRandomString(length) {
             const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
             let result = '';
@@ -244,9 +243,10 @@
                 const verifier = generateRandomString(64);
                 const challenge = await generateChallenge(verifier);
 
+                // Saves to localStorage using the exact key name the callback file looks for
                 localStorage.setItem("pkce_verifier", verifier);
                 
-                // FIXED: Appended .html extension to align with deployment file naming conventions
+                // FIXED: Direct exact matching folder string mapping path
                 const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
                 printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
@@ -261,7 +261,6 @@
 
                 if (data.url) {
                     printLog("5. Navigating to authentication platform...");
-                    printLog("⚠️ NOTE: If a 403 Forbidden follows immediately, verify that 'https://hackeraug.github.io/Yoto-book-maker/callback.html' is whitelisted inside your Yoto Developer Dashboard.");
                     setTimeout(() => { window.location.href = data.url; }, 1500);
                 } else {
                     throw new Error("Render response omitted critical routing definitions.");
