@@ -247,7 +247,7 @@
                 localStorage.setItem("pkce_verifier", verifier);
                 
                 // FIXED: Direct exact matching folder string mapping path
-                const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
+                const redirectUri = "https://hackeraug.github.io/Yoto-multi-card/callback.html";
                 printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
                 const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
