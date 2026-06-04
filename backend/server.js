@@ -183,27 +183,24 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (Uses Client Secret)
+ * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (Public Client - PKCE Flow Only)
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
     const { authCode, codeVerifier, redirectUri } = req.body;
     
     const clientId = process.env.YOTO_CLIENT_ID;
-    const clientSecret = process.env.YOTO_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return res.status(500).json({ error: "Server Error: Missing YOTO_CLIENT_ID or YOTO_CLIENT_SECRET on Render." });
+    if (!clientId) {
+      return res.status(500).json({ error: "Server Error: Missing YOTO_CLIENT_ID on Render." });
     }
     
-    // Authenticating backend connection identity with Client Secret to clear 403 blocks
+    // UPDATED: Executing a pure Public Client PKCE handshake (No client_secret submitted)
     const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: clientId,
-        client_secret: clientSecret, 
         code: authCode,
         code_verifier: codeVerifier,
         redirect_uri: redirectUri
