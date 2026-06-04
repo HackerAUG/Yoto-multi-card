@@ -246,7 +246,7 @@
 
                 localStorage.setItem("pkce_verifier", verifier);
                 
-                const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
+                const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback";
                 printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
                 const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
