@@ -85,11 +85,11 @@
         <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
             Select a compiled text-adventure structure or JSON map file (`.yexe`) from your hard drive to publish it to your home launcher app store.
         </p>
-        
+         
         <form id="yexeUploadForm">
             <label for="appName">Override App Title Display Name</label>
             <input type="text" id="appName" placeholder="e.g., Haunted Castle Quest" required>
-            
+             
             <label for="iconIdentifier">Default Matrix LED Icon Identifier</label>
             <input type="text" id="iconIdentifier" placeholder="e.g., yoto:magnet" required>
 
@@ -116,24 +116,47 @@
             alertDiv.innerText = '✅ OS Kernel successfully locked onto target hardware player!';
         }
 
+        // Helper function for flawless URL-Safe Base64 generation 
+        function bufferToBase64Url(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
         document.getElementById('authBtn').addEventListener('click', async () => {
-            const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-                .map(b => b.toString(16).padStart(2, '0')).join('');
+            // Generate a secure, clean cryptographically safe verifier string
+            const randomBytes = new Uint8Array(32);
+            crypto.getRandomValues(randomBytes);
+            const verifier = bufferToBase64Url(randomBytes);
             
             sessionStorage.setItem('yoto_pkce_verifier', verifier);
             
-            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-            const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            // Hash the code verifier securely using SHA-256
+            const encoder = new TextEncoder();
+            const dataToHash = encoder.encode(verifier);
+            const digest = await crypto.subtle.digest('SHA-256', dataToHash);
+            
+            // Format challenge strictly into an approved URL-safe Base64 digest string
+            const challenge = bufferToBase64Url(digest);
             
             const redirectUri = `https://hackeraug.github.io/yoto-multi-card/callback.html`;
             
             try {
-                // Requesting Auth URL from hardcoded server instance
+                // Requesting Auth URL from server instance
                 const res = await fetch(`${TARGET_SERVER}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`);
                 const data = await res.json();
                 
-                window.location.href = data.url;
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(`Server Error: ${data.error || "Could not resolve authorization URI."}`);
+                }
             } catch (err) {
                 alert("Could not build authentication loop. Ensure your Render backend is running!");
             }
