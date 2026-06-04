@@ -4,31 +4,31 @@
     <meta charset="UTF-8">
     <title>Yoto OS Authentication Callback</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f6f8; color: #333; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ff6b35; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #121214; color: #e1e1e6; }
+        .loader { border: 4px solid #202024; border-top: 4px solid #ff5a22; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error-card { background: white; padding: 30px; max-width: 500px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; }
-        .btn { display: inline-block; background: #ff6b35; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 15px; font-weight: bold; }
+        .error-card { background: #202024; padding: 30px; max-width: 500px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #323238; display: none; }
+        .btn { display: inline-block; background: #ff5a22; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="loadingZone">
-        <h2>🦊 Syncing with Yoto Cloud Identity Hub...</h2>
+        <h2>📡 Syncing with Yoto Cloud Identity Hub...</h2>
         <p>Please wait while we finalize the hardware bridge link.</p>
         <div class="loader"></div>
     </div>
 
     <div id="errorZone" class="error-card">
-        <h2 style="color: #e53e3e;">⚠️ Connection Failed</h2>
-        <p id="errorMsg" style="font-weight: bold; color: #4a5568;"></p>
+        <h2 style="color: #f75a68;">⚠️ Connection Failed</h2>
+        <p id="errorMsg" style="font-weight: bold; color: #8d8d99;"></p>
         <a href="index.html" class="btn">Return to Home Deck</a>
     </div>
 
     <script>
-        // CONFIGURATION ROUTING ARCHITECTURE
         const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
-        const EXACT_REDIRECT_URI = "https://hackeraug.github.io/Yoto-multi-card/callback";
+        // Fixed path structure to match your exact GitHub Pages subfolder deployment layout
+        const EXACT_REDIRECT_URI = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
 
         async function processTokenExchange() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -39,24 +39,30 @@
                 return;
             }
 
-            const codeVerifier = sessionStorage.getItem('yoto_pkce_verifier');
+            // Fixed: Pulling correct matching string key from localStorage container
+            const codeVerifier = localStorage.getItem('pkce_verifier');
+
+            if (!codeVerifier) {
+                showError("Cryptographic verifier missing from local browser cache. Restart connection process.");
+                return;
+            }
 
             try {
-                // Submit payload off GitHub Pages to your live Render backend process router
                 const response = await fetch(`${TARGET_SERVER}/api/yoto/callback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         authCode: authCode,
                         codeVerifier: codeVerifier,
-                        redirectUri: EXACT_REDIRECT_URI // Hardcoded link ensures null values can never happen
+                        redirectUri: EXACT_REDIRECT_URI 
                     })
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Send user back to main dashboard panel with active sync status parameter flag
+                    // Clean up tracking cache memory before returning home
+                    localStorage.removeItem('pkce_verifier');
                     window.location.href = "index.html?connected=true";
                 } else {
                     showError(data.error || "Token exchange negotiation handshake failed.");
@@ -74,7 +80,6 @@
             document.getElementById('errorMsg').innerText = msg;
         }
 
-        // Initialize immediately on document rendering frames
         processTokenExchange();
     </script>
 </body>
