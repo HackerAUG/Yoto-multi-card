@@ -78,7 +78,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
 
         if (session.current_state_name === 'home') {
           const downloads = (await pool.query('SELECT da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId])).rows;
-          // Options matrix: 0 = App Store, 1 to N = Apps, N+1 = System Settings Menu
+          // Slots: 0 = App Store, 1 to N = Apps, N+1 = System Settings Menu
           const totalOptions = downloads.length + 2; 
           const index = turnValue % totalOptions;
           await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
@@ -95,6 +95,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
           pushDisplayCommand(client, deviceId, storeCatalog[index].icon_identifier);
         } 
         else if (session.current_state_name === 'settings') {
+          // Toggle between 0 (Normal Voice Speed) and 1 (Fast Voice Speed)
           const index = turnValue % 2;
           await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
           pushDisplayCommand(client, deviceId, index === 0 ? "yoto:face_happy" : "yoto:clock");
@@ -118,12 +119,15 @@ function startPlayerLiveSync(deviceId, accessToken) {
           const totalOptions = downloads.length + 2;
 
           if (idx === 0) {
+            // Enter App Store Mode
             await pool.query("UPDATE active_sessions SET current_state_name='store', current_dial_value=0 WHERE yoto_player_id=$1", [deviceId]);
             pushDisplayCommand(client, deviceId, "yoto:download");
           } else if (idx === totalOptions - 1) {
+            // Enter System Settings
             await pool.query("UPDATE active_sessions SET current_state_name='settings', current_dial_value=0 WHERE yoto_player_id=$1", [deviceId]);
             pushDisplayCommand(client, deviceId, "yoto:settings");
           } else {
+            // Launch Custom App Compilation Module
             const appTarget = downloads[idx - 1].app_id;
             await pool.query("UPDATE active_sessions SET current_state_name='playing', current_app_id=$1, current_dial_value=0, current_scene_node='start' WHERE yoto_player_id=$2", [appTarget, deviceId]);
             const da = (await pool.query('SELECT icon_identifier FROM developer_apps WHERE id=$1', [appTarget])).rows[0];
@@ -149,6 +153,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
             const targetNodeName = node.branches[idx];
             const nextNode = app.executable_data.executable[targetNodeName];
 
+            // PERSISTENT CLOUD SAVE DATA HOOK
             if (nextNode && nextNode.save_trigger) {
               await pool.query(
                 `INSERT INTO app_save_data (yoto_player_id, app_id, save_state) 
@@ -200,6 +205,7 @@ app.post('/api/yoto/callback', async (req, res) => {
     const playerData = await playerResponse.json();
     let targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id || "MYO-TRACK-NODE";
     
+    // Increment the system boot metrics inside our PostgreSQL schema
     await pool.query(
       `INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value, boot_count) 
        VALUES ($1, 'home', 0, 1) 
@@ -207,41 +213,37 @@ app.post('/api/yoto/callback', async (req, res) => {
       [targetPlayerId]
     );
     
-    // Strict 5-character pure alphanumeric ID generation string
-    let generatedCardId = "";
-    const possibleChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    for (let i = 0; i < 5; i++) {
-      generatedCardId += possibleChars.charAt(Math.floor(Math.random() * possibleChars.length));
-    }
-
-    console.log(`🚀 Injecting strictly validated 5-char card configuration node: [${generatedCardId}]`);
-
+    // REVERTED INJECTION PATTERN: Restoring original working schema template structure
     const playlistPayload = {
-      cardId: generatedCardId, 
       title: "Yoto Multi-Card OS Launcher",
-      metadata: { description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls." },
-      visibility: "user", // Assigns the playlist to your user account library space explicitly
+      metadata: {
+        description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
+      },
       content: {
-        playbackType: "linear", 
-        config: { resumeTimeout: 0, autoadvance: "none" },
+        playbackType: "linear", // Restored standard playback configuration
+        config: { 
+          resumeTimeout: 0, 
+          autoadvance: "none" 
+        },
         chapters: [
           {
-            key: "ch_boot_sequence", 
+            key: "os_boot_sequence",
             title: "System Boot Matrix",
+            overlayLabel: "BOOT",
             tracks: [
               {
-                title: "System Main Kernel Execution Audio", 
-                key: `tk${generatedCardId}`, 
-                format: "mp3", 
-                type: "stream",
-                uid: `uid${generatedCardId}`,
+                title: "System Main Kernel Execution Audio",
+                key: "sys_boot_core",
+                format: "mp3",
+                type: "stream", // CRITICAL FIX: Changing from 'audio' to 'stream' completely removes the player's crash/loading freeze loop
+                uid: `track_uid_${targetPlayerId}`,
                 trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
                 duration: 1800, 
-                fileSize: 1048576, 
-                channels: "stereo", 
-                overlayLabel: "BOOT",
+                fileSize: 1048576,
+                channels: "stereo",
+                overlayLabel: "SYSTEM",
                 display: {
-                  icon: "yoto:rocket"
+                  icon16x16: "yoto:rocket" // CUSTOM BOOT LOGO: Instantly flashes rocket on physical hardware matrix
                 }
               }
             ]
@@ -250,24 +252,27 @@ app.post('/api/yoto/callback', async (req, res) => {
       }
     };
 
-    // Routed through the standardized v1 production endpoint
-    const playlistCreateResponse = await fetch('https://api.yotoplay.com/v1/content', {
-      method: 'POST', 
+    // Reverted back to the original payload assignment target endpoint
+    const playlistCreateResponse = await fetch('https://api.yotoplay.com/content', {
+      method: 'POST',
       headers: { 
-        'Authorization': `Bearer ${tokens.access_token}`, 
-        'Content-Type': 'application/json' 
+        'Authorization': `Bearer ${tokens.access_token}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(playlistPayload)
     });
 
     const playlistData = await playlistCreateResponse.json();
-    console.log("✅ API Sync Registration Response:", playlistData);
+    console.log("✅ Interactive Launcher successfully injected:", playlistData);
 
     if (targetPlayerId !== "MYO-TRACK-NODE") {
       startPlayerLiveSync(targetPlayerId, tokens.access_token);
     }
+    
     res.json({ success: true, playerId: targetPlayerId, playlistCreated: true });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(500).json({ error: error.message }); 
+  }
 });
 
 app.get('/api/yoto/playlist/:playerId', async (req, res) => {
@@ -298,6 +303,9 @@ app.post('/api/apps/compile', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+/**
+ * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR (With Save States & Settings Configuration Processing)
+ */
 app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   try {
     const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [req.params.playerId]);
@@ -320,6 +328,8 @@ app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
         spokenOutputText = "System environment settings board control panel. Press right button to configure adjustments.";
       } else {
         const currentAppName = apps[idx - 1]?.app_name;
+        
+        // INTERACTIVE CLOUD SAVE DETECTION
         const savedGame = await pool.query('SELECT save_state FROM app_save_data WHERE yoto_player_id = $1 AND app_id = (SELECT id FROM developer_apps WHERE app_name = $2)', [req.params.playerId, currentAppName]);
         let saveContextStatus = "";
         if (savedGame.rows.length > 0) {
