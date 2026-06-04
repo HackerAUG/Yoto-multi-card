@@ -246,7 +246,8 @@
 
                 localStorage.setItem("pkce_verifier", verifier);
                 
-                const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback";
+                // FIXED: Appended .html extension to align with deployment file naming conventions
+                const redirectUri = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
                 printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
                 const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
@@ -260,7 +261,7 @@
 
                 if (data.url) {
                     printLog("5. Navigating to authentication platform...");
-                    printLog("⚠️ NOTE: If a 403 Forbidden follows immediately, double check that 'https://hackeraug.github.io/callback.html' is whitelisted inside your Yoto Developer Dashboard settings.");
+                    printLog("⚠️ NOTE: If a 403 Forbidden follows immediately, verify that 'https://hackeraug.github.io/Yoto-book-maker/callback.html' is whitelisted inside your Yoto Developer Dashboard.");
                     setTimeout(() => { window.location.href = data.url; }, 1500);
                 } else {
                     throw new Error("Render response omitted critical routing definitions.");
