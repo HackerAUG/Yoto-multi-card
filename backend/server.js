@@ -207,9 +207,9 @@ app.post('/api/yoto/callback', async (req, res) => {
       [targetPlayerId]
     );
     
-    // VALIDATION BLOCK FIX: Create a strict 5-character pure alphanumeric ID string
+    // Strict 5-character pure alphanumeric ID generation string
     let generatedCardId = "";
-    const possibleChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed ambiguous characters
+    const possibleChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     for (let i = 0; i < 5; i++) {
       generatedCardId += possibleChars.charAt(Math.floor(Math.random() * possibleChars.length));
     }
@@ -220,6 +220,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       cardId: generatedCardId, 
       title: "Yoto Multi-Card OS Launcher",
       metadata: { description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls." },
+      visibility: "user", // Assigns the playlist to your user account library space explicitly
       content: {
         playbackType: "linear", 
         config: { resumeTimeout: 0, autoadvance: "none" },
@@ -240,7 +241,7 @@ app.post('/api/yoto/callback', async (req, res) => {
                 channels: "stereo", 
                 overlayLabel: "BOOT",
                 display: {
-                  icon: "yoto:rocket" // Updated standard display property string fallback
+                  icon: "yoto:rocket"
                 }
               }
             ]
@@ -249,7 +250,8 @@ app.post('/api/yoto/callback', async (req, res) => {
       }
     };
 
-    const playlistCreateResponse = await fetch('https://api.yotoplay.com/content', {
+    // Routed through the standardized v1 production endpoint
+    const playlistCreateResponse = await fetch('https://api.yotoplay.com/v1/content', {
       method: 'POST', 
       headers: { 
         'Authorization': `Bearer ${tokens.access_token}`, 
