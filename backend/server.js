@@ -58,12 +58,11 @@ function startPlayerLiveSync(deviceId, accessToken) {
     try {
       const event = JSON.parse(message.toString());
       
-      // Fetch current session running on this physical device
       const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
       if (sessionRes.rows.length === 0) return;
       const session = sessionRes.rows[0];
 
-      // CONSTRAINT 1: Left Button Always Returns the OS to the Main Home Selection Matrix State
+      // Left Button Reset to Home State
       if (event.type === 'left_button_pressed') {
         await pool.query(
           "UPDATE active_sessions SET current_state_name='home', current_dial_value=0, current_app_id=NULL, current_scene_node='start' WHERE yoto_player_id=$1", 
@@ -73,13 +72,13 @@ function startPlayerLiveSync(deviceId, accessToken) {
         return;
       }
 
-      // CONSTRAINT 2: Turn Right Dial to shift options (Left Dial modifications are ignored)
+      // Right Dial Turn Options Navigation
       if (event.type === 'right_dial_turned') {
         const turnValue = Math.abs(event.value || 0);
 
         if (session.current_state_name === 'home') {
           const downloads = (await pool.query('SELECT da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId])).rows;
-          const index = turnValue % (downloads.length + 1); // 0 index is the App Store
+          const index = turnValue % (downloads.length + 1);
           await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
           pushDisplayCommand(client, deviceId, index === 0 ? "yoto:download" : downloads[index - 1].icon_identifier);
         } 
@@ -100,17 +99,15 @@ function startPlayerLiveSync(deviceId, accessToken) {
         }
       }
 
-      // CONSTRAINT 3: Right Button click executes transitions, selections, and downloads
+      // Right Button Click Selection Matrix Execution
       if (event.type === 'right_button_pressed') {
         const idx = session.current_dial_value || 0;
 
         if (session.current_state_name === 'home') {
           if (idx === 0) {
-            // Enter App Store catalog mode
             await pool.query("UPDATE active_sessions SET current_state_name='store', current_dial_value=0 WHERE yoto_player_id=$1", [deviceId]);
             pushDisplayCommand(client, deviceId, "yoto:download");
           } else {
-            // Launch downloaded application
             const downloads = (await pool.query('SELECT app_id FROM installed_apps WHERE yoto_player_id = $1 ORDER BY id', [deviceId])).rows;
             const appTarget = downloads[idx - 1].app_id;
             await pool.query("UPDATE active_sessions SET current_state_name='playing', current_app_id=$1, current_dial_value=0, current_scene_node='start' WHERE yoto_player_id=$2", [appTarget, deviceId]);
@@ -119,14 +116,12 @@ function startPlayerLiveSync(deviceId, accessToken) {
           }
         } 
         else if (session.current_state_name === 'store') {
-          // Download app to local player profile storage simulation
           const storeCatalog = (await pool.query('SELECT id FROM developer_apps ORDER BY id')).rows;
           if (storeCatalog.length === 0) return;
           await pool.query('INSERT INTO installed_apps (yoto_player_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [deviceId, storeCatalog[idx].id]);
           pushDisplayCommand(client, deviceId, "yoto:tick");
         } 
         else if (session.current_state_name === 'playing') {
-          // Advance the .yexe state tree selection forward based on chosen index branch target
           const app = (await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id])).rows[0];
           const node = app.executable_data.executable[session.current_scene_node || app.executable_data.entry];
           if (node && node.type === 'decision') {
@@ -164,12 +159,13 @@ app.get('/api/yoto/auth-url', (req, res) => {
 
     const securityState = Math.random().toString(36).substring(2, 15);
 
+    // FIXED: Added the required 'user:content:manage' security scopes to the link generator
     const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
       audience: 'https://api.yotoplay.com',
       client_id: clientId,
       redirect_uri: redirect_uri,
       response_type: 'code',
-      scope: 'openid profile offline_access family:library:view',
+      scope: 'openid profile offline_access family:library:view user:content:manage',
       state: securityState,
       code_challenge: challenge,
       code_challenge_method: 'S256'
@@ -182,7 +178,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Auto-Hardware Fallback & Playlist Automation)
+ * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Automated Playlist Integration)
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
@@ -193,7 +189,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       return res.status(500).json({ error: "Server Error: Missing YOTO_CLIENT_ID on Render." });
     }
     
-    // 1. Exchange the Authorization Code for an Access Token
+    // 1. Exchange authorization code for token matrix
     const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -211,7 +207,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       return res.status(400).json({ error: `Token negotiation rejected: ${tokens.error_description || 'Invalid Grant Structure'}` });
     }
 
-    // 2. Query for physical player IDs linked to your account
+    // 2. Fetch active physical user hardware IDs
     const playerResponse = await fetch('https://api.yotoplay.com/api/v1/players', {
       headers: { 'Authorization': `Bearer ${tokens.access_token}` }
     });
@@ -219,44 +215,49 @@ app.post('/api/yoto/callback', async (req, res) => {
     
     let targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id;
 
-    // Fallback assignment to keep the workspace accessible during API resolution sync windows
     if (!targetPlayerId) {
-      console.log("⚠️ Physical ID missing during lookup. Generating active account mapping reference.");
+      console.log("⚠️ Physical hardware registration trace missing. Routing workspace mapping node.");
       targetPlayerId = "MYO-TRACK-NODE"; 
     }
     
-    // 3. Seed the PostgreSQL session registry database
+    // 3. Register tracking row inside our PostgreSQL schema
     await pool.query(
       "INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value) VALUES ($1, 'home', 0) ON CONFLICT (yoto_player_id) DO NOTHING", 
       [targetPlayerId]
     );
     
-    // 4. AUTOMATED PLAYLIST INJECTION: Create custom asset structure inside the library profile
-    console.log("🚀 Provisioning Custom Multi-Card OS Playlist layout directly via Yoto Ecosystem endpoints...");
+    // 4. AUTOMATED PLAYLIST INJECTION: Mount configuration schema layout onto /content endpoint
+    console.log("🚀 Provisioning Custom Multi-Card OS Playlist layout directly via Yoto Content Endpoints...");
     
     const playlistPayload = {
       title: "Yoto Multi-Card OS Custom Kernel",
-      description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls.",
-      chapters: [
-        {
-          key: "os_boot_sequence",
-          title: "System Boot Environment Matrix",
-          overlayLabel: "BOOT",
-          tracks: [
-            {
-              title: "System Main Kernel Execution Audio Track",
-              trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
-              key: "sys_boot_core",
-              format: "mp3",
-              type: "audio",
-              overlayLabel: "SYSTEM",
-              duration: 1800,
-              fileSize: 1048576,
-              channels: "stereo"
-            }
-          ]
-        }
-      ]
+      metadata: {
+        description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
+      },
+      content: {
+        playbackType: "linear",
+        config: { resumeTimeout: 2592000 },
+        chapters: [
+          {
+            key: "os_boot_sequence",
+            title: "System Boot Environment Matrix",
+            overlayLabel: "BOOT",
+            tracks: [
+              {
+                title: "System Main Kernel Execution Audio Track",
+                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
+                key: "sys_boot_core",
+                format: "mp3",
+                type: "audio",
+                overlayLabel: "SYSTEM",
+                duration: 1800,
+                fileSize: 1048576,
+                channels: "stereo"
+              }
+            ]
+          }
+        ]
+      }
     };
 
     const playlistCreateResponse = await fetch('https://api.yotoplay.com/content', {
@@ -269,9 +270,8 @@ app.post('/api/yoto/callback', async (req, res) => {
     });
 
     const playlistData = await playlistCreateResponse.json();
-    console.log("✅ Custom configuration mapping synced with target dashboard library index layout!", playlistData);
+    console.log("✅ Custom configuration mapping response payload:", playlistData);
 
-    // Boot up the persistent streaming listener for the player's buttons/dials if real hardware handles are loaded
     if (targetPlayerId !== "MYO-TRACK-NODE") {
       startPlayerLiveSync(targetPlayerId, tokens.access_token);
     }
@@ -283,26 +283,22 @@ app.post('/api/yoto/callback', async (req, res) => {
 });
 
 /**
- * EXPLICIT ENDPOINT: Read direct playlist parameters cleanly
+ * EXPLICIT ENDPOINT: Read direct playlist backup structures
  */
 app.get('/api/yoto/playlist/:playerId', async (req, res) => {
   try {
-    const { playerId } = req.params;
-    
-    const playlistStructure = {
+    res.json({
       playlist_name: "Yoto Multi-Card Custom OS Engine",
       description: "Cloud-rendered execution layer for dynamic application modules.",
       banner_icon: "yoto:home",
       tracks: [
         {
           title: "System Main Kernel Execution Audio Track",
-          url: `https://yoto-multi-card.onrender.com/yoto/launcher/${playerId}/track.mp3`,
+          url: `https://yoto-multi-card.onrender.com/yoto/launcher/${req.params.playerId}/track.mp3`,
           type: "audio/mp3"
         }
       ]
-    };
-    
-    res.json(playlistStructure);
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -324,7 +320,7 @@ app.post('/api/apps/compile', async (req, res) => {
       [appName, iconIdentifier, JSON.stringify(yexeData)]
     );
     
-    res.status(201).json({ message: "Successfully published app package to distribution streams!" });
+    res.status(201).json({ message: "Successfully published app package!" });
   } catch (error) { 
     res.status(500).json({ error: error.message }); 
   }
@@ -372,7 +368,6 @@ app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
   }
 });
 
-// Fire up the Server Engine
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Yoto Custom OS Engine running on port ${PORT}`);
