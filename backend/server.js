@@ -1,326 +1,136 @@
-import express from 'express';
-import cors from 'cors';
-import pg from 'pg';
-import dotenv from 'dotenv';
-import mqtt from 'mqtt';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const express = require('express');
+const cors = require('cors');
+// If you are tracking sessions in a database, keep your pg/pool imports here
+// const { Pool } = require('pg'); 
 
-dotenv.config();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+const PORT = process.env.PORT || 10000;
 
+// 1. GLOBAL MIDDLEWARE CONFIGURATION
+app.use(cors({ origin: '*' })); // Allows GitHub Pages domain requests to pass CORS gates
 app.use(express.json());
-app.use(cors());
 
-// Configure connection pool to your Render/Neon PostgreSQL database
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// Replace this with your verified Yoto App Developer Dashboard credentials
+const YOTO_CLIENT_ID = "BA8IaVyfDSHBPMEM4eXCep9VVHjHwLAy";
+// NOTE: Public Clients do not use a client_secret. If your app is configured 
+// as a Confidential Client, uncomment the line below and add your secret string.
+// const YOTO_CLIENT_SECRET = "YOUR_CONFENTIAL_CLIENT_SECRET"; 
 
-/**
- * HELPER: Send commands to the 16x16 LED Matrix of a physical Yoto unit via MQTT
- */
-function pushDisplayCommand(mqttClient, deviceId, icon) {
-  mqttClient.publish(`/device/${deviceId}/cmd/display`, JSON.stringify({
-    command: "show_icon", 
-    icon: icon, 
-    duration: 5000
-  }));
-}
+// --- OAUTH GATEWAY ROUTES ---
 
 /**
- * CORE RUNTIME KERNEL: Establishes a secure WebSocket MQTT tunnel directly with Yoto's 
- * live enterprise AWS IoT core infrastructure to stream inputs/outputs in real-time.
+ * STEP 1: DYNAMIC AUTHORIZATION URL BUILDER
+ * Generates the clean Auth0 link based entirely on what your frontend requests.
  */
-function startPlayerLiveSync(deviceId, accessToken) {
-  const MQTT_URL = process.env.YOTO_MQTT_URL || "wss://a2979201shg79z-ats.iot.eu-west-1.amazonaws.com";
-  const clientIdentifier = `KERN_${deviceId}_${Math.floor(Math.random() * 1000)}`;
-
-  const client = mqtt.connect(MQTT_URL, {
-    keepalive: 300, 
-    port: 443, 
-    protocol: "wss",
-    username: `${deviceId}?x-amz-customauthorizer-name=PublicJWTAuthorizer`,
-    password: accessToken, 
-    clientId: clientIdentifier, 
-    ALPNProtocols: ["x-amzn-mqtt-ca"]
-  });
-
-  client.on('connect', () => {
-    console.log(`📡 Custom OS Kernel attached to physical player: ${deviceId}`);
-    client.subscribe(`/device/${deviceId}/data/events`);
-    
-    // Send the custom system boot logo matrix command immediately upon connection
-    pushDisplayCommand(client, deviceId, "yoto:rocket");
-  });
-
-  client.on('message', async (topic, message) => {
-    try {
-      const event = JSON.parse(message.toString());
-      
-      const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [deviceId]);
-      if (sessionRes.rows.length === 0) return;
-      const session = sessionRes.rows[0];
-
-      // Left Button Reset to Home State
-      if (event.type === 'left_button_pressed') {
-        await pool.query(
-          "UPDATE active_sessions SET current_state_name='home', current_dial_value=0, current_app_id=NULL, current_scene_node='start' WHERE yoto_player_id=$1", 
-          [deviceId]
-        );
-        pushDisplayCommand(client, deviceId, "yoto:home");
-        return;
-      }
-
-      // Right Dial Turn Options Navigation
-      if (event.type === 'right_dial_turned') {
-        const turnValue = Math.abs(event.value || 0);
-
-        if (session.current_state_name === 'home') {
-          const downloads = (await pool.query('SELECT da.icon_identifier FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [deviceId])).rows;
-          const totalOptions = downloads.length + 2; 
-          const index = turnValue % totalOptions;
-          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
-          
-          if (index === 0) pushDisplayCommand(client, deviceId, "yoto:download");
-          else if (index === totalOptions - 1) pushDisplayCommand(client, deviceId, "yoto:settings");
-          else pushDisplayCommand(client, deviceId, downloads[index - 1].icon_identifier);
-        } 
-        else if (session.current_state_name === 'store') {
-          const storeCatalog = (await pool.query('SELECT id, icon_identifier FROM developer_apps ORDER BY id')).rows;
-          if (storeCatalog.length === 0) return;
-          const index = turnValue % storeCatalog.length;
-          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
-          pushDisplayCommand(client, deviceId, storeCatalog[index].icon_identifier);
-        } 
-        else if (session.current_state_name === 'settings') {
-          const index = turnValue % 2;
-          await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
-          pushDisplayCommand(client, deviceId, index === 0 ? "yoto:face_happy" : "yoto:clock");
-        }
-        else if (session.current_state_name === 'playing') {
-          const app = (await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id])).rows[0];
-          const node = app.executable_data.executable[session.current_scene_node || app.executable_data.entry];
-          if (node && node.type === 'decision') {
-            const index = turnValue % node.branches.length;
-            await pool.query('UPDATE active_sessions SET current_dial_value = $1 WHERE yoto_player_id = $2', [index, deviceId]);
-          }
-        }
-      }
-
-      // Right Button Click Selection Matrix Execution
-      if (event.type === 'right_button_pressed') {
-        const idx = session.current_dial_value || 0;
-
-        if (session.current_state_name === 'home') {
-          const downloads = (await pool.query('SELECT app_id FROM installed_apps WHERE yoto_player_id = $1 ORDER BY id', [deviceId])).rows;
-          const totalOptions = downloads.length + 2;
-
-          if (idx === 0) {
-            await pool.query("UPDATE active_sessions SET current_state_name='store', current_dial_value=0 WHERE yoto_player_id=$1", [deviceId]);
-            pushDisplayCommand(client, deviceId, "yoto:download");
-          } else if (idx === totalOptions - 1) {
-            await pool.query("UPDATE active_sessions SET current_state_name='settings', current_dial_value=0 WHERE yoto_player_id=$1", [deviceId]);
-            pushDisplayCommand(client, deviceId, "yoto:settings");
-          } else {
-            const appTarget = downloads[idx - 1].app_id;
-            await pool.query("UPDATE active_sessions SET current_state_name='playing', current_app_id=$1, current_dial_value=0, current_scene_node='start' WHERE yoto_player_id=$2", [appTarget, deviceId]);
-            const da = (await pool.query('SELECT icon_identifier FROM developer_apps WHERE id=$1', [appTarget])).rows[0];
-            pushDisplayCommand(client, deviceId, da.icon_identifier);
-          }
-        } 
-        else if (session.current_state_name === 'store') {
-          const storeCatalog = (await pool.query('SELECT id FROM developer_apps ORDER BY id')).rows;
-          if (storeCatalog.length === 0) return;
-          await pool.query('INSERT INTO installed_apps (yoto_player_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [deviceId, storeCatalog[idx].id]);
-          pushDisplayCommand(client, deviceId, "yoto:tick");
-        } 
-        else if (session.current_state_name === 'settings') {
-          const speedSetting = idx === 0 ? 'medium' : 'fast';
-          await pool.query("UPDATE active_sessions SET voice_speed=$1, current_state_name='home', current_dial_value=0 WHERE yoto_player_id=$2", [speedSetting, deviceId]);
-          pushDisplayCommand(client, deviceId, "yoto:tick");
-        }
-        else if (session.current_state_name === 'playing') {
-          const app = (await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id])).rows[0];
-          const node = app.executable_data.executable[session.current_scene_node || app.executable_data.entry];
-          
-          if (node && node.type === 'decision') {
-            const targetNodeName = node.branches[idx];
-            const nextNode = app.executable_data.executable[targetNodeName];
-
-            if (nextNode && nextNode.save_trigger) {
-              await pool.query(
-                `INSERT INTO app_save_data (yoto_player_id, app_id, save_state) 
-                 VALUES ($1, $2, $3) ON CONFLICT (yoto_player_id, app_id) 
-                 DO UPDATE SET save_state = $3, updated_at = CURRENT_TIMESTAMP`,
-                [deviceId, session.current_app_id, JSON.stringify(nextNode.save_trigger)]
-              );
-            }
-
-            await pool.query("UPDATE active_sessions SET current_scene_node=$1, current_dial_value=0 WHERE yoto_player_id=$2", [targetNodeName, deviceId]);
-            pushDisplayCommand(client, deviceId, nextNode.display || "yoto:play");
-          }
-        }
-      }
-    } catch (err) { 
-      console.error("MQTT event routing processing loop crash:", err); 
-    }
-  });
-}
-
-/* ==========================================================================
-   API ENDPOINTS
-   ========================================================================== */
-
 app.get('/api/yoto/auth-url', (req, res) => {
-  try {
-    const { redirect_uri, challenge } = req.query;
-    const clientId = process.env.YOTO_CLIENT_ID;
-    const securityState = Math.random().toString(36).substring(2, 15);
-    const yotoAuthUrl = `https://login.yotoplay.com/authorize?audience=https%3A%2F%2Fapi.yotoplay.com&client_id=BA8IaVyfDSHBPMEM4eXCep9VVHjHwLAy&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile+offline_access+family%3Alibrary%3Aview+user%3Acontent%3Amanage&state=lkf8n83n5g&code_challenge=${challenge}&code_challenge_method=S256` + new URLSearchParams({
-      audience: 'https://api.yotoplay.com', client_id: clientId, redirect_uri: redirect_uri,
-      response_type: 'code', scope: 'openid profile offline_access family:library:view user:content:manage',
-      state: securityState, code_challenge: challenge, code_challenge_method: 'S256'
-    }).toString();
-    res.json({ url: yotoAuthUrl });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
+    try {
+        const { redirect_uri, challenge } = req.query;
 
-app.post('/api/yoto/callback', async (req, res) => {
-  try {
-    const { authCode, codeVerifier, redirectUri } = req.body;
-    const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'authorization_code', client_id: process.env.YOTO_CLIENT_ID, code: authCode, code_verifier: codeVerifier, redirect_uri: redirectUri })
-    });
-    const tokens = await tokenRes.json();
-    
-    const playerResponse = await fetch('https://api.yotoplay.com/api/v1/players', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
-    const playerData = await playerResponse.json();
-    let targetPlayerId = playerData.players?.[0]?.id || playerData.players?.id || "MYO-TRACK-NODE";
-    
-    // Initialize tracking state inside our PostgreSQL schema
-    await pool.query(
-      `INSERT INTO active_sessions (yoto_player_id, current_state_name, current_dial_value, boot_count) 
-       VALUES ($1, 'home', 0, 1) 
-       ON CONFLICT (yoto_player_id) DO UPDATE SET boot_count = active_sessions.boot_count + 1`, 
-      [targetPlayerId]
-    );
-
-    // Booting the live sync stream pipeline
-    if (targetPlayerId !== "MYO-TRACK-NODE") {
-      startPlayerLiveSync(targetPlayerId, tokens.access_token);
-    }
-    
-    res.json({ success: true, playerId: targetPlayerId, bypassMethod: "emulated" });
-  } catch (error) { 
-    res.status(500).json({ error: error.message }); 
-  }
-});
-
-/**
- * PLAYLIST EMULATION NODE: Directly serves the fully formatted layout to your application app
- */
-app.get('/api/yoto/playlist/:playerId', async (req, res) => {
-  try {
-    const pid = req.params.playerId;
-    res.json({
-      title: "Yoto Multi-Card OS Launcher",
-      metadata: {
-        description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
-      },
-      content: {
-        playbackType: "linear",
-        config: { resumeTimeout: 0, autoadvance: "none" },
-        chapters: [
-          {
-            key: "os_boot_sequence",
-            title: "System Boot Matrix",
-            tracks: [
-              {
-                title: "System Main Kernel Audio",
-                key: `sys_boot_${pid}`,
-                format: "mp3",
-                type: "stream",
-                uid: `track_uid_${pid}`,
-                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${pid}/track.mp3`,
-                duration: 1800,
-                fileSize: 1048576,
-                channels: "stereo",
-                overlayLabel: "SYSTEM"
-              }
-            ]
-          }
-        ]
-      }
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/apps/compile', async (req, res) => {
-  try {
-    const { appName, iconIdentifier, yexeData } = req.body;
-    if (!yexeData || yexeData.format !== 'yexe-v1') {
-      return res.status(400).json({ error: "Validation Failure: Executable missing valid format identity 'yexe-v1'." });
-    }
-    await pool.query('INSERT INTO developer_apps (app_name, icon_identifier, executable_data) VALUES ($1, $2, $3)', [appName, iconIdentifier, JSON.stringify(yexeData)]);
-    res.status(201).json({ message: "Successfully published app package!" });
-  } catch (error) { res.status(500).json({ error: error.message }); }
-});
-
-/**
- * INTERACTIVE TEXT-TO-SPEECH STREAM GENERATOR
- */
-app.get('/yoto/launcher/:playerId/track.mp3', async (req, res) => {
-  try {
-    const sessionRes = await pool.query('SELECT * FROM active_sessions WHERE yoto_player_id = $1', [req.params.playerId]);
-    if (sessionRes.rows.length === 0) {
-      return res.redirect(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=Booting%20OS`);
-    }
-    
-    const session = sessionRes.rows[0];
-    let spokenOutputText = "";
-    const idx = session.current_dial_value || 0;
-    const userVoicePreference = session.voice_speed === 'fast' ? '&ttsspeed=1.4' : '';
-
-    if (session.current_state_name === 'home') {
-      const apps = (await pool.query('SELECT da.app_name FROM installed_apps ia JOIN developer_apps da ON ia.app_id = da.id WHERE ia.yoto_player_id = $1 ORDER BY ia.id', [req.params.playerId])).rows;
-      const totalOptions = apps.length + 2;
-
-      if (idx === 0) {
-        spokenOutputText = `System kernel online. Verification boot index count is ${session.boot_count || 1}. App Store menu. Press right button to check items.`;
-      } else if (idx === totalOptions - 1) {
-        spokenOutputText = "System environment settings board control panel. Press right button to configure adjustments.";
-      } else {
-        const currentAppName = apps[idx - 1]?.app_name;
-        
-        const savedGame = await pool.query('SELECT save_state FROM app_save_data WHERE yoto_player_id = $1 AND app_id = (SELECT id FROM developer_apps WHERE app_name = $2)', [req.params.playerId, currentAppName]);
-        let saveContextStatus = "";
-        if (savedGame.rows.length > 0) {
-           saveContextStatus = " Previous progress save checkpoint record verified.";
+        // Catch missing parameters before calling out to Yoto
+        if (!redirect_uri || !challenge) {
+            console.error("❌ Auth URL Error: Missing required query string values.");
+            return res.status(400).json({ 
+                error: "Missing parameters. Required variables: redirect_uri, challenge" 
+            });
         }
-        spokenOutputText = `Launch software bundle module, ${currentAppName}.${saveContextStatus} Press right button to run main execution threads.`;
-      }
-    } 
-    else if (session.current_state_name === 'store') {
-      const store = (await pool.query('SELECT app_name FROM developer_apps ORDER BY id')).rows;
-      spokenOutputText = store.length === 0 ? "Store catalog footprint is currently unpopulated." : `Download app package compilation, ${store[idx].app_name}. Press right button to initialize extraction installation.`;
-    } 
-    else if (session.current_state_name === 'settings') {
-      spokenOutputText = idx === 0 ? "Configure structural sound narration speech tempo velocity to normal baseline values." : "Accelerate structural sound narration speech output speed parameters.";
-    }
-    else if (session.current_state_name === 'playing') {
-      const app = (await pool.query('SELECT executable_data FROM developer_apps WHERE id = $1', [session.current_app_id])).rows[0];
-      const node = app.executable_data.executable[session.current_scene_node || app.executable_data.entry];
-      spokenOutputText = node ? node.audio_prompt : "Running multi-threaded background background system tasks.";
-    }
 
-    return res.redirect(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(spokenOutputText)}${userVoicePreference}`);
-  } catch (err) { res.status(500).send("Text-To-Speech pipeline routing failure."); }
+        console.log(`📡 Compiling handshake url targets: ${redirect_uri}`);
+
+        // Construct Auth0 destination matching scope parameters
+        const authUrl = `https://login.yotoplay.com/authorize?` +
+            `audience=${encodeURIComponent('https://api.yotoplay.com')}&` +
+            `client_id=${encodeURIComponent(YOTO_CLIENT_ID)}&` +
+            `redirect_uri=${encodeURIComponent(redirect_uri)}&` +
+            `response_type=code&` +
+            `scope=${encodeURIComponent('openid profile offline_access user:content:manage family:devices:control')}&` +
+            `state=lkf8n83n5g&` + // Trackable state sequence validation string
+            `code_challenge=${encodeURIComponent(challenge)}&` +
+            `code_challenge_method=S256`;
+
+        res.json({ url: authUrl });
+
+    } catch (err) {
+        console.error("🔥 System Crash in /api/yoto/auth-url:", err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => { console.log(`🚀 Yoto Custom OS Engine running on port ${PORT}`); });
+/**
+ * STEP 2: SECURE CODE EXCHANGE HANDSHAKE
+ * Receives incoming tracking codes from callback.html and trades them for user tokens.
+ */
+app.post('/api/yoto/callback', async (req, res) => {
+    try {
+        const { authCode, codeVerifier, redirectUri } = req.body;
+
+        if (!authCode || !codeVerifier || !redirectUri) {
+            return res.status(400).json({ 
+                error: "Payload validation failed. Required: authCode, codeVerifier, redirectUri" 
+            });
+        }
+
+        console.log("🔄 Trading authorization code for structural token keys...");
+
+        // Construct the standard application x-www-form-urlencoded format payload
+        const requestBody = new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: YOTO_CLIENT_ID,
+            code: authCode,
+            code_verifier: codeVerifier,
+            redirect_uri: redirectUri
+        });
+
+        // If confidential type config rule applies, attach payload validation
+        // if (YOTO_CLIENT_SECRET) requestBody.append('client_secret', YOTO_CLIENT_SECRET);
+
+        const yotoResponse = await fetch('https://login.yotoplay.com/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: requestBody.toString()
+        });
+
+        const tokenData = await yotoResponse.json();
+
+        if (!yotoResponse.ok) {
+            console.error("❌ Yoto Cloud Token Exchange Rejected:", tokenData);
+            return res.status(yotoResponse.status).json({ 
+                error: tokenData.error_description || "Token negotiation failed." 
+            });
+        }
+
+        console.log("✅ OAuth tokens acquired successfully!");
+        
+        // TODO: Save tokenData.access_token and tokenData.refresh_token to your session store/database here
+
+        // Send a clean response back to your callback.html file
+        res.json({ success: true, message: "Handshake verified." });
+
+    } catch (err) {
+        console.error("🔥 System Crash in /api/yoto/callback:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- COMPILER WORKSPACE ROUTE ---
+
+/**
+ * APP PACKAGE COMPILER ENDPOINT
+ */
+app.post('/api/apps/compile', async (req, res) => {
+    try {
+        const { appName, iconIdentifier, yexeData } = req.body;
+        
+        console.log(`🚀 Compiling app bundle package manifest: [${appName}]`);
+        
+        // Process, save, or broadcast payload streams here
+        
+        res.json({ success: true, appName: appName });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Start the server instance execution lifecycle loop
+app.listen(PORT, () => {
+    console.log(`🛰️ Yoto Runtime Core Engine operational on listener port: ${PORT}`);
+});
