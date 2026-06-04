@@ -213,7 +213,7 @@
             statusBox.scrollTop = statusBox.scrollHeight;
         }
 
-        /* DYNAMIC CRYPTO PKCE TO GENERATE SECURE COMPLIANT STRINGS */
+        /* WEB CRYPTO API: AUTOMATED PKCE COMPLIANT STRING LAYER */
         function generateRandomString(length) {
             const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
             let result = '';
@@ -233,52 +233,49 @@
                 .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
-        // CONNECT BUTTON RUNTIME TRIGGER WITH AUTO-PKCE
         connectBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             connectBtn.disabled = true;
-            connectBtn.innerText = "Processing SecOps Token...";
+            connectBtn.innerText = "Processing Handshake...";
             statusBox.innerHTML = "";
 
             try {
-                printLog("1. Generating hardware PKCE cryptographic configurations...");
+                printLog("1. Cryptographic tokens compiled successfully.");
                 const verifier = generateRandomString(64);
                 const challenge = await generateChallenge(verifier);
 
-                // Cache the verifier to localStorage so callback.html can claim it later
                 localStorage.setItem("pkce_verifier", verifier);
                 
                 const redirectUri = "https://hackeraug.github.io/callback.html";
-                printLog(`2. Verification mapping set: ${redirectUri}`);
+                printLog(`2. Local target registry confirmed: ${redirectUri}`);
 
                 const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
-                printLog("3. Fetching authorization routing block from backend node...");
+                printLog("3. Requesting secure URL allocation from Render instance...");
 
                 const response = await fetch(requestUrl);
-                if (!response.ok) throw new Error(`HTTP network error returned code: ${response.status}`);
+                if (!response.ok) throw new Error(`Render endpoint returned failure code: ${response.status}`);
                 
                 const data = await response.json();
-                printLog("4. Authorization structure decoded successfully.");
+                printLog("4. Handshake structure built.");
 
                 if (data.url) {
-                    printLog("5. Verified token accepted. Routing frame to Yoto identity dashboard...");
-                    setTimeout(() => { window.location.href = data.url; }, 800);
+                    printLog("5. Navigating to authentication platform...");
+                    printLog("⚠️ NOTE: If a 403 Forbidden follows immediately, double check that 'https://hackeraug.github.io/callback.html' is whitelisted inside your Yoto Developer Dashboard settings.");
+                    setTimeout(() => { window.location.href = data.url; }, 1500);
                 } else {
-                    throw new Error("Payload configuration verification string missing from secure engine frame.");
+                    throw new Error("Render response omitted critical routing definitions.");
                 }
 
             } catch (err) {
-                printLog(`❌ SEVERE ENGINE EXCEPTION: ${err.message}`, true);
+                printLog(`❌ REJECTION RECEIVED: ${err.message}`, true);
                 connectBtn.disabled = false;
                 connectBtn.innerText = "Connect Yoto Account";
             }
         });
 
-        // RE-INTEGRATED SYSTEM MANIFEST APPLICATION COMPILER SUBMIT LOOP
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const compileBtn = document.getElementById('compileBtn');
-            
             const appName = document.getElementById('appName').value;
             const iconIdentifier = document.getElementById('iconId').value;
             const rawYexe = document.getElementById('yexeData').value;
@@ -286,7 +283,6 @@
             try {
                 compileBtn.disabled = true;
                 compileBtn.innerText = "Bundling...";
-                
                 const parsedJson = JSON.parse(rawYexe);
                 
                 const response = await fetch(`${BACKEND_URL}/api/apps/compile`, {
@@ -299,13 +295,12 @@
                     })
                 });
 
-                if (!response.ok) throw new Error(`Compilation submission dropped by host: ${response.status}`);
-                
-                alert(`🚀 ${appName} successfully published directly to your ecosystem registry node database!`);
+                if (!response.ok) throw new Error(`Database rejected build upload: ${response.status}`);
+                alert(`🚀 ${appName} compiled and published to your infrastructure registry node!`);
                 uploadForm.reset();
 
             } catch (err) {
-                alert(`❌ COMPILER FAULT: ${err.message}\nEnsure code matches 'yexe-v1' layout rules perfectly.`);
+                alert(`❌ COMPILER FAULT: ${err.message}`);
             } finally {
                 compileBtn.disabled = false;
                 compileBtn.innerText = "Compile & Publish Package";
