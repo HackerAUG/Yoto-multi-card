@@ -210,7 +210,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       [targetPlayerId]
     );
 
-    // Bypassed the locked AWS endpoint completely. Spinning up the MQTT engine sync loop directly.
+    // Booting the live sync stream pipeline
     if (targetPlayerId !== "MYO-TRACK-NODE") {
       startPlayerLiveSync(targetPlayerId, tokens.access_token);
     }
@@ -222,7 +222,7 @@ app.post('/api/yoto/callback', async (req, res) => {
 });
 
 /**
- * PLAYLIST EMULATION NODE: Serves the fully formatted playlist schema.
+ * PLAYLIST EMULATION NODE: Directly serves the fully formatted layout to your application app
  */
 app.get('/api/yoto/playlist/:playerId', async (req, res) => {
   try {
