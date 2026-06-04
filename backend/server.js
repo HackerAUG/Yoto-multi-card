@@ -177,7 +177,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Automated Interactive Playlist Injection)
+ * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Patched Stream Injection Pattern)
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
@@ -225,7 +225,7 @@ app.post('/api/yoto/callback', async (req, res) => {
       [targetPlayerId]
     );
     
-    // 4. INTERACTIVE PLAYLIST INJECTION: Force player to stay responsive to inputs
+    // 4. INTERACTIVE PLAYLIST INJECTION (FIXED STREAM PATTERN)
     console.log("🚀 Provisioning Interactive Media Launcher Node via Yoto Content Endpoints...");
     
     const playlistPayload = {
@@ -234,30 +234,30 @@ app.post('/api/yoto/callback', async (req, res) => {
         description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
       },
       content: {
-        playbackType: "interactive", // Unlocks the interactive dial-and-button tracking state
+        playbackType: "linear", 
         config: { 
-          resumeTimeout: 0, // Fresh boot every single time the card is pushed in
-          autoadvance: "none" // Keep looping the current command track
+          resumeTimeout: 0, 
+          autoadvance: "none" 
         },
         chapters: [
           {
             key: "os_boot_sequence",
             title: "System Boot Matrix",
+            overlayLabel: "BOOT",
             tracks: [
               {
                 title: "System Main Kernel Execution Audio",
                 key: "sys_boot_core",
                 format: "mp3",
-                type: "audio", 
+                type: "stream", // Patched from 'audio' to unlock streaming pipeline cleanly
                 uid: `track_uid_${targetPlayerId}`,
                 trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
-                duration: 1800, // Provides a massive 30-minute processing window
+                duration: 1800, 
                 fileSize: 1048576,
+                channels: "stereo",
+                overlayLabel: "SYSTEM",
                 display: {
-                  icon: "yoto:home" // Display standard home asset icon on the physical screen
-                },
-                events: {
-                  interactive: true // Emits a continuous tracking hook to keep the player connected
+                  icon16x16: "yoto:home"
                 }
               }
             ]
