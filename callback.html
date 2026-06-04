@@ -14,7 +14,7 @@
 <body>
 
     <div id="loadingZone">
-        <h2>📡 Syncing with Yoto Cloud Identity Hub...</h2>
+        <h2>🦊 Syncing with Yoto Cloud Identity Hub...</h2>
         <p>Please wait while we finalize the hardware bridge link.</p>
         <div class="loader"></div>
     </div>
@@ -27,7 +27,7 @@
 
     <script>
         const TARGET_SERVER = "https://yoto-multi-card.onrender.com";
-        // Fixed path structure to match your exact GitHub Pages subfolder deployment layout
+        // FIXED: Realigned with the correct repo folder name and file path configuration
         const EXACT_REDIRECT_URI = "https://hackeraug.github.io/Yoto-book-maker/callback.html";
 
         async function processTokenExchange() {
@@ -39,11 +39,11 @@
                 return;
             }
 
-            // Fixed: Pulling correct matching string key from localStorage container
+            // FIXED: Looks inside localStorage using the unified key token name
             const codeVerifier = localStorage.getItem('pkce_verifier');
 
             if (!codeVerifier) {
-                showError("Cryptographic verifier missing from local browser cache. Restart connection process.");
+                showError("Cryptographic verifier token went missing from local storage cache memory.");
                 return;
             }
 
@@ -54,14 +54,13 @@
                     body: JSON.stringify({
                         authCode: authCode,
                         codeVerifier: codeVerifier,
-                        redirectUri: EXACT_REDIRECT_URI 
+                        redirectUri: EXACT_REDIRECT_URI
                     })
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Clean up tracking cache memory before returning home
                     localStorage.removeItem('pkce_verifier');
                     window.location.href = "index.html?connected=true";
                 } else {
