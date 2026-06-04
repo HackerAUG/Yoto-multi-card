@@ -159,7 +159,6 @@ app.get('/api/yoto/auth-url', (req, res) => {
 
     const securityState = Math.random().toString(36).substring(2, 15);
 
-    // FIXED: Added the required 'user:content:manage' security scopes to the link generator
     const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
       audience: 'https://api.yotoplay.com',
       client_id: clientId,
@@ -178,7 +177,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Automated Playlist Integration)
+ * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (With Automated Interactive Playlist Injection)
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
@@ -226,33 +225,40 @@ app.post('/api/yoto/callback', async (req, res) => {
       [targetPlayerId]
     );
     
-    // 4. AUTOMATED PLAYLIST INJECTION: Mount configuration schema layout onto /content endpoint
-    console.log("🚀 Provisioning Custom Multi-Card OS Playlist layout directly via Yoto Content Endpoints...");
+    // 4. INTERACTIVE PLAYLIST INJECTION: Force player to stay responsive to inputs
+    console.log("🚀 Provisioning Interactive Media Launcher Node via Yoto Content Endpoints...");
     
     const playlistPayload = {
-      title: "Yoto Multi-Card OS Custom Kernel",
+      title: "Yoto Multi-Card OS Launcher",
       metadata: {
         description: "Cloud-rendered interface mapping over-the-air instructions directly onto physical hardware controls."
       },
       content: {
-        playbackType: "linear",
-        config: { resumeTimeout: 2592000 },
+        playbackType: "interactive", // Unlocks the interactive dial-and-button tracking state
+        config: { 
+          resumeTimeout: 0, // Fresh boot every single time the card is pushed in
+          autoadvance: "none" // Keep looping the current command track
+        },
         chapters: [
           {
             key: "os_boot_sequence",
-            title: "System Boot Environment Matrix",
-            overlayLabel: "BOOT",
+            title: "System Boot Matrix",
             tracks: [
               {
-                title: "System Main Kernel Execution Audio Track",
-                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
+                title: "System Main Kernel Execution Audio",
                 key: "sys_boot_core",
                 format: "mp3",
-                type: "audio",
-                overlayLabel: "SYSTEM",
-                duration: 1800,
+                type: "audio", 
+                uid: `track_uid_${targetPlayerId}`,
+                trackUrl: `https://yoto-multi-card.onrender.com/yoto/launcher/${targetPlayerId}/track.mp3`,
+                duration: 1800, // Provides a massive 30-minute processing window
                 fileSize: 1048576,
-                channels: "stereo"
+                display: {
+                  icon: "yoto:home" // Display standard home asset icon on the physical screen
+                },
+                events: {
+                  interactive: true // Emits a continuous tracking hook to keep the player connected
+                }
               }
             ]
           }
@@ -270,7 +276,7 @@ app.post('/api/yoto/callback', async (req, res) => {
     });
 
     const playlistData = await playlistCreateResponse.json();
-    console.log("✅ Custom configuration mapping response payload:", playlistData);
+    console.log("✅ Interactive Launcher successfully injected:", playlistData);
 
     if (targetPlayerId !== "MYO-TRACK-NODE") {
       startPlayerLiveSync(targetPlayerId, tokens.access_token);
