@@ -164,7 +164,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
     }
 
     // FIXED: Changed from yoto.com to yoto.dev
-    const yotoAuthUrl = `https://yoto.dev/oauth/authorize?` + new URLSearchParams({
+    const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirect_uri,
       response_type: 'code',
