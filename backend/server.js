@@ -148,7 +148,7 @@ function startPlayerLiveSync(deviceId, accessToken) {
    ========================================================================== */
 
 /**
- * FIXED AUTH-URL ENDPOINT (Clears 400 Bad Request Blocks)
+ * AUTH-URL GENERATION ENDPOINT
  */
 app.get('/api/yoto/auth-url', (req, res) => {
   try {
@@ -164,7 +164,7 @@ app.get('/api/yoto/auth-url', (req, res) => {
 
     const securityState = Math.random().toString(36).substring(2, 15);
 
-    // FIXED: Formatted strictly according to Yoto Identity standards
+    // Formatted strictly according to Yoto Identity standards
     const yotoAuthUrl = `https://login.yotoplay.com/authorize?` + new URLSearchParams({
       audience: 'https://api.yotoplay.com',
       client_id: clientId,
@@ -183,19 +183,27 @@ app.get('/api/yoto/auth-url', (req, res) => {
 });
 
 /**
- * FIXED OAUTH CALLBACK ENDPOINT
+ * SECURE TOKEN EXCHANGE CALLBACK ENDPOINT (Uses Client Secret)
  */
 app.post('/api/yoto/callback', async (req, res) => {
   try {
     const { authCode, codeVerifier, redirectUri } = req.body;
     
-    // FIXED: Exchanging tokens via the official Auth0 Identity Provider pipeline
+    const clientId = process.env.YOTO_CLIENT_ID;
+    const clientSecret = process.env.YOTO_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ error: "Server Error: Missing YOTO_CLIENT_ID or YOTO_CLIENT_SECRET on Render." });
+    }
+    
+    // Authenticating backend connection identity with Client Secret to clear 403 blocks
     const tokenRes = await fetch('https://login.yotoplay.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: process.env.YOTO_CLIENT_ID || '',
+        client_id: clientId,
+        client_secret: clientSecret, 
         code: authCode,
         code_verifier: codeVerifier,
         redirect_uri: redirectUri
@@ -203,7 +211,9 @@ app.post('/api/yoto/callback', async (req, res) => {
     });
     
     const tokens = await tokenRes.json();
-    if (!tokens.access_token) return res.status(400).json({ error: "Token negotiation rejected by Yoto server." });
+    if (!tokens.access_token) {
+      return res.status(400).json({ error: `Token negotiation rejected: ${tokens.error_description || 'Invalid Grant Structure'}` });
+    }
 
     // Fetch the player ID profile linked with this authorization token
     const playerResponse = await fetch('https://api.yotoplay.com/api/v1/players', {
