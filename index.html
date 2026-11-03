@@ -1,311 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yoto Developer Terminal & OS Hub</title>
-    <style>
-        :root {
-            --bg-base: #121214;
-            --bg-surface: #202024;
-            --primary: #ff5a22; /* Yoto Orange */
-            --primary-hover: #e04e1d;
-            --text-main: #ffffff;
-            --text-muted: #8d8d99;
-            --border: #323238;
-            --success: #00b37e;
-            --error: #f75a68;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-base);
-            color: var(--text-main);
-            margin: 0;
-            padding: 2rem 1rem;
-            display: flex;
-            justify-content: center;
-        }
-
-        .workspace {
-            max-width: 900px;
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 2rem;
-        }
-
-        @media (min-width: 768px) {
-            .workspace {
-                grid-template-columns: 1fr 1fr;
-            }
-            .full-width {
-                grid-column: span 2;
-            }
-        }
-
-        .panel {
-            background-color: var(--bg-surface);
-            padding: 2rem;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        }
-
-        h1, h2 {
-            margin-top: 0;
-            font-weight: 700;
-        }
-
-        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
-        h2 { font-size: 1.3rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-
-        p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.25rem;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 0.75rem;
-            background-color: var(--bg-base);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-main);
-            font-family: inherit;
-            font-size: 0.95rem;
-            box-sizing: border-box;
-        }
-
-        input[type="text"]:focus, textarea:focus {
-            border-color: var(--primary);
-            outline: none;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 120px;
-            font-family: monospace;
-            font-size: 0.85rem;
-        }
-
-        .btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            transition: background-color 0.2s;
-        }
-
-        .btn:hover { background-color: var(--primary-hover); }
-        .btn:disabled {
-            background-color: #4d4d56;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        #status-box {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-family: monospace;
-            background-color: var(--bg-base);
-            color: var(--text-muted);
-            max-height: 200px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            border: 1px solid var(--border);
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yoto App Launcher Transpiler</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-900 text-white min-h-screen p-8">
+  <div class="max-w-4xl mx-auto space-y-8">
+    
+    <!-- Header -->
+    <header class="flex justify-between items-center border-b border-slate-700 pb-4">
+      <h1 class="text-2xl font-bold text-amber-400">Yoto DSL Code Transpiler & Launcher</h1>
+      <button id="authBtn" onclick="loginYoto()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2 rounded-lg">
+        Connect Yoto Account
+      </button>
+    </header>
 
-    <div class="workspace">
-        
-        <div class="panel full-width">
-            <h1>Yoto Custom OS Runtime Console</h1>
-            <p>Deploy application layers directly onto physical Yoto matrix modules using dynamic live streams and cloud save tracking.</p>
-            <button type="button" id="connectBtn" class="btn">Connect Yoto Account</button>
-            <div id="status-box"></div>
-        </div>
+    <!-- Transpiler & Editor Section -->
+    <main class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Script Input -->
+      <div class="space-y-3">
+        <label class="block font-medium text-slate-300">Simple Launcher Script (DSL):</label>
+        <textarea id="dslInput" rows="10" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 font-mono text-sm focus:outline-none focus:border-amber-400" placeholder="// Example Script:
+SET DEVICE 'yoto-living-room'
+LAUNCH CARD 'card-abc-123' AT TRACK 1"></textarea>
+        <button onclick="compileAndRun()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg transition">
+          Compile & Run Launcher Script
+        </button>
+      </div>
 
-        <div class="panel">
-            <h2>App Package Compiler</h2>
-            <form id="uploadForm">
-                <div class="form-group">
-                    <label for="appName">Application Identity / Name</label>
-                    <input type="text" id="appName" placeholder="e.g., Space Miner Odyssey" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="iconId">Matrix Display Icon Key</label>
-                    <input type="text" id="iconId" placeholder="e.g., yoto:rocket, yoto:space_invader" required>
-                </div>
+      <!-- Compiled API Output & Log -->
+      <div class="space-y-3">
+        <label class="block font-medium text-slate-300">Yoto API Payload Output:</label>
+        <pre id="jsonOutput" class="w-full h-60 bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-xs text-green-400 overflow-auto">// Compiled JSON payloads will appear here</pre>
+        <div id="statusLog" class="text-sm text-slate-400 italic">Status: Ready</div>
+      </div>
+    </main>
+  </div>
 
-                <div class="form-group">
-                    <label for="yexeData">Executable Manifest (.yexe JSON layout)</label>
-                    <textarea id="yexeData" required placeholder='{
-  "format": "yexe-v1",
-  "entry": "start",
-  "executable": {
-    "start": {
-      "type": "decision",
-      "audio_prompt": "Welcome to Space Odyssey. Spin knob to choice destiny.",
-      "branches": ["node_alpha", "node_beta"],
-      "display": "yoto:rocket"
+  <script>
+    let authToken = localStorage.getItem('yoto_token');
+
+    function loginYoto() {
+      const clientId = 'YOUR_YOTO_CLIENT_ID';
+      const redirectUri = encodeURIComponent('http://localhost:3000/api/auth/callback');
+      const scope = encodeURIComponent('family:devices:control family:library:view');
+      window.location.href = `https://api.yotoplay.com/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
     }
-  }
-}'></textarea>
-                </div>
 
-                <button type="submit" id="compileBtn" class="btn" style="background-color: #00b37e;">Compile & Publish Package</button>
-            </form>
-        </div>
+    // Simple Transpiler Engine: Converts simplified script lines to Yoto API Commands
+    function parseSimpleCode(codeText) {
+      const lines = codeText.split('\n');
+      let targetDevice = null;
+      const commands = [];
 
-        <div class="panel">
-            <h2>System Reference Architecture</h2>
-            <p>The layout engine routes states through a binary execution format. Applications run sequentially based on hardware triggers:</p>
-            <ul style="color: var(--text-muted); font-size: 0.9rem; padding-left: 1.25rem; line-height: 1.6;">
-                <li><strong style="color:white">Left Button Click:</strong> Interrupts code blocks and drops runtime safely back to the home menu matrix.</li>
-                <li><strong style="color:white">Right Dial Turn:</strong> Iterates structural navigation index properties over localized array dimensions.</li>
-                <li><strong style="color:white">Right Button Click:</strong> Selects and shifts the execution step to your compiled branch array nodes.</li>
-            </ul>
-        </div>
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) return;
 
-    </div>
-
-    <script>
-        const BACKEND_URL = "https://yoto-multi-card.onrender.com";
-        
-        const connectBtn = document.getElementById('connectBtn');
-        const statusBox = document.getElementById('status-box');
-        const uploadForm = document.getElementById('uploadForm');
-
-        function printLog(msg, isError = false) {
-            console.log(`[RUNTIME] ${msg}`);
-            statusBox.style.display = "block";
-            const color = isError ? 'var(--error)' : 'var(--success)';
-            statusBox.innerHTML += `<span style="color: ${color}">[${new Date().toLocaleTimeString()}] ${msg}</span>\n`;
-            statusBox.scrollTop = statusBox.scrollHeight;
+        // Parse: SET DEVICE 'deviceId'
+        const deviceMatch = trimmed.match(/^SET DEVICE ['"]([^'"]+)['"]/i);
+        if (deviceMatch) {
+          targetDevice = deviceMatch[1];
+          return;
         }
 
-        function generateRandomString(length) {
-            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-            let result = '';
-            const values = new Uint32Array(length);
-            crypto.getRandomValues(values);
-            for (let i = 0; i < length; i++) {
-                result += charset[values[i] % charset.length];
+        // Parse: LAUNCH CARD 'cardId' [AT TRACK x]
+        const launchMatch = trimmed.match(/^LAUNCH CARD ['"]([^'"]+)['"](?:\s+AT TRACK\s+(\d+))?/i);
+        if (launchMatch) {
+          const cardId = launchMatch[1];
+          const track = launchMatch[2] ? `/${launchMatch[2]}` : '';
+          
+          if (!targetDevice) {
+            throw new Error(`Line ${index + 1}: Target device must be set before LAUNCH command.`);
+          }
+
+          commands.push({
+            endpoint: `/v1/family/devices/${targetDevice}/play`,
+            payload: {
+              uri: `yoto://card/${cardId}${track}`
             }
-            return result;
+          });
+        }
+      });
+
+      return commands;
+    }
+
+    async function compileAndRun() {
+      const code = document.getElementById('dslInput').value;
+      const outputElem = document.getElementById('jsonOutput');
+      const statusElem = document.getElementById('statusLog');
+
+      try {
+        const compiledPayloads = parseSimpleCode(code);
+        outputElem.textContent = JSON.stringify(compiledPayloads, null, 2);
+        statusElem.textContent = 'Compilation successful. Dispatching requests...';
+
+        if (!authToken) {
+          statusElem.textContent = 'Compiled successfully! (Connect Yoto Account to execute live calls)';
+          return;
         }
 
-        async function generateChallenge(verifier) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(verifier);
-            const digest = await crypto.subtle.digest('SHA-256', data);
-            return btoa(String.fromCharCode(...new Uint8Array(digest)))
-                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        for (const cmd of compiledPayloads) {
+          await fetch('http://localhost:3000/api/launch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+              deviceId: cmd.endpoint.split('/')[4],
+              cardUri: cmd.payload.uri
+            })
+          });
         }
-
-        connectBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            connectBtn.disabled = true;
-            connectBtn.innerText = "Processing Handshake...";
-            statusBox.innerHTML = "";
-
-            try {
-                printLog("1. Cryptographic tokens compiled successfully.");
-                const verifier = generateRandomString(64);
-                const challenge = await generateChallenge(verifier);
-
-                // Saves to localStorage using the exact key name the callback file looks for
-                localStorage.setItem("pkce_verifier", verifier);
-                
-                // FIXED: Direct exact matching folder string mapping path
-                const redirectUri = "https://hackeraug.github.io/Yoto-multi-card/callback.html";
-                printLog(`2. Local target registry confirmed: ${redirectUri}`);
-
-                const requestUrl = `${BACKEND_URL}/api/yoto/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}&challenge=${challenge}`;
-                printLog("3. Requesting secure URL allocation from Render instance...");
-
-                const response = await fetch(requestUrl);
-                if (!response.ok) throw new Error(`Render endpoint returned failure code: ${response.status}`);
-                
-                const data = await response.json();
-                printLog("4. Handshake structure built.");
-
-                if (data.url) {
-                    printLog("5. Navigating to authentication platform...");
-                    setTimeout(() => { window.location.href = data.url; }, 1500);
-                } else {
-                    throw new Error("Render response omitted critical routing definitions.");
-                }
-
-            } catch (err) {
-                printLog(`❌ REJECTION RECEIVED: ${err.message}`, true);
-                connectBtn.disabled = false;
-                connectBtn.innerText = "Connect Yoto Account";
-            }
-        });
-
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const compileBtn = document.getElementById('compileBtn');
-            const appName = document.getElementById('appName').value;
-            const iconIdentifier = document.getElementById('iconId').value;
-            const rawYexe = document.getElementById('yexeData').value;
-
-            try {
-                compileBtn.disabled = true;
-                compileBtn.innerText = "Bundling...";
-                const parsedJson = JSON.parse(rawYexe);
-                
-                const response = await fetch(`${BACKEND_URL}/api/apps/compile`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        appName: appName,
-                        iconIdentifier: iconIdentifier,
-                        yexeData: parsedJson
-                    })
-                });
-
-                if (!response.ok) throw new Error(`Database rejected build upload: ${response.status}`);
-                alert(`🚀 ${appName} compiled and published to your infrastructure registry node!`);
-                uploadForm.reset();
-
-            } catch (err) {
-                alert(`❌ COMPILER FAULT: ${err.message}`);
-            } finally {
-                compileBtn.disabled = false;
-                compileBtn.innerText = "Compile & Publish Package";
-            }
-        });
-    </script>
+        statusElem.textContent = 'Execution complete: Commands sent to Yoto player!';
+      } catch (err) {
+        outputElem.textContent = `Error: ${err.message}`;
+        statusElem.textContent = 'Compilation failed.';
+      }
+    }
+  </script>
 </body>
 </html>
